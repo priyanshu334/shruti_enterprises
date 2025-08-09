@@ -1,19 +1,23 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/utils/supabase/server";
 
-export async function GET(
-  req: Request,
-  context: { params: { id: string } }
-) {
+export async function GET(req: Request) {
   try {
     const supabase = await createSupabaseServerClient();
 
-    const staffId = context.params.id;
+    // Parse URL to get `id`
+    const url = new URL(req.url);
+    const pathname = url.pathname; // e.g. /api/staff/123
+    const id = pathname.split("/").pop(); // get last segment as id
+
+    if (!id) {
+      return NextResponse.json({ success: false, message: "Missing id" }, { status: 400 });
+    }
 
     const { data, error } = await supabase
       .from("staff")
       .select("*")
-      .eq("id", staffId)
+      .eq("id", id)
       .single();
 
     if (error) throw error;
@@ -28,19 +32,22 @@ export async function GET(
   }
 }
 
-export async function DELETE(
-  req: Request,
-  context: { params: { id: string } }
-) {
+export async function DELETE(req: Request) {
   try {
     const supabase = await createSupabaseServerClient();
 
-    const staffId = context.params.id;
+    const url = new URL(req.url);
+    const pathname = url.pathname;
+    const id = pathname.split("/").pop();
+
+    if (!id) {
+      return NextResponse.json({ success: false, message: "Missing id" }, { status: 400 });
+    }
 
     const { data, error } = await supabase
       .from("staff")
       .delete()
-      .eq("id", staffId)
+      .eq("id", id)
       .select();
 
     if (error) throw error;
