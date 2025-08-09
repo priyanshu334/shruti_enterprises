@@ -29,15 +29,15 @@ export default function FirmsPage() {
   const [firms, setFirms] = useState<FirmData[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
-  const [addCompanyOpenIndex, setAddCompanyOpenIndex] = useState<number | null>(
-    null
-  );
-  const [newCompanyName, setNewCompanyName] = useState("");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteFirmIndex, setDeleteFirmIndex] = useState<number | null>(null);
-  const [newFirmName, setNewFirmName] = useState("");
 
-  const [editingFirmIndex, setEditingFirmIndex] = useState<number | null>(null);
+  const [addCompanyFirmId, setAddCompanyFirmId] = useState<number | null>(null);
+  const [newCompanyName, setNewCompanyName] = useState("");
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteFirmId, setDeleteFirmId] = useState<number | null>(null);
+
+  const [newFirmName, setNewFirmName] = useState("");
+  const [editingFirmId, setEditingFirmId] = useState<number | null>(null);
   const [editingFirmName, setEditingFirmName] = useState("");
 
   const [editingCompanyId, setEditingCompanyId] = useState<number | null>(null);
@@ -49,93 +49,63 @@ export default function FirmsPage() {
 
   const fetchFirms = async () => {
     try {
-      const { data: firmsData, error: fErr } = await supabase
+      const { data, error } = await supabase
         .from("firms")
-        .select("id, name")
+        .select("id, name, companies ( id, name, firm_id )")
         .order("id", { ascending: true });
 
-      if (fErr) {
-        toast.error(`Error fetching firms: ${fErr.message}`);
+      if (error) {
+        toast.error(`Error fetching firms: ${error.message}`);
         return;
       }
 
-      const { data: companiesData, error: cErr } = await supabase
-        .from("companies")
-        .select("id, name, firm_id")
-        .order("id", { ascending: true });
-
-      if (cErr) {
-        toast.error(`Error fetching companies: ${cErr.message}`);
-        return;
-      }
-
-      const companiesByFirm = new Map<number, Company[]>();
-      (companiesData || []).forEach((c: any) => {
-        const fid = c.firm_id as number | undefined;
-        if (typeof fid === "number") {
-          const arr = companiesByFirm.get(fid) || [];
-          arr.push({ id: c.id, name: c.name, firm_id: fid });
-          companiesByFirm.set(fid, arr);
-        }
-      });
-
-      const normalized: FirmData[] =
-        (firmsData || []).map((f: any) => ({
+      setFirms(
+        (data || []).map((f: any) => ({
           id: f.id,
           name: f.name,
-          companies: companiesByFirm.get(f.id) || [],
-        })) || [];
-
-      setFirms(normalized);
+          companies: f.companies || [],
+        }))
+      );
     } catch (err: any) {
-      toast.error(`Unexpected error fetching data: ${err?.message || err}`);
+      toast.error(`Unexpected error: ${err?.message || err}`);
     }
   };
 
   const filteredFirms = firms.filter((firm) => {
     const search = searchTerm.toLowerCase();
-    const firmMatches = firm.name.toLowerCase().includes(search);
-    const companyMatches = firm.companies.some((c) =>
-      c.name.toLowerCase().includes(search)
+    return (
+      firm.name.toLowerCase().includes(search) ||
+      firm.companies.some((c) => c.name.toLowerCase().includes(search))
     );
-    return firmMatches || companyMatches;
   });
 
   const handleFirmToggle = (index: number) => {
     setExpandedIndex((prev) => (prev === index ? null : index));
-    setAddCompanyOpenIndex(null);
-    setEditingFirmIndex(null);
+    setAddCompanyFirmId(null);
+    setEditingFirmId(null);
     setEditingCompanyId(null);
   };
 
-  const handleDeleteClick = (index: number) => {
-    setDeleteFirmIndex(index);
+  const handleDeleteClick = (firmId: number) => {
+    setDeleteFirmId(firmId);
     setDeleteDialogOpen(true);
   };
 
   const confirmDelete = async () => {
-    if (deleteFirmIndex === null) return;
-    const firm = filteredFirms[deleteFirmIndex]; // from filtered list
+    if (deleteFirmId === null) return;
 
     try {
-      await supabase.from("companies").delete().eq("firm_id", firm.id);
-      await supabase.from("firms").delete().eq("id", firm.id);
+      await supabase.from("companies").delete().eq("firm_id", deleteFirmId);
+      await supabase.from("firms").delete().eq("id", deleteFirmId);
 
       toast.success("Firm deleted successfully");
-      setFirms((prev) => prev.filter((f) => f.id !== firm.id));
+      setFirms((prev) => prev.filter((f) => f.id !== deleteFirmId));
     } catch (err: any) {
       toast.error(`Delete failed: ${err?.message || err}`);
     } finally {
       setDeleteDialogOpen(false);
-      setDeleteFirmIndex(null);
+      setDeleteFirmId(null);
     }
-  };
-
-  const handleAddCompanyClick = (firmIndex: number) => {
-    setAddCompanyOpenIndex(firmIndex);
-    setNewCompanyName("");
-    setEditingCompanyId(null);
-    setEditingCompanyName("");
   };
 
   const handleAddFirm = async (e: React.FormEvent) => {
@@ -157,27 +127,30 @@ export default function FirmsPage() {
       return;
     }
 
-    const created = data && data[0];
-    if (created) {
+    if (data && data[0]) {
       setFirms((prev) => [
         ...prev,
-        { id: created.id, name: created.name, companies: [] },
+        { id: data[0].id, name: data[0].name, companies: [] },
       ]);
       toast.success("Firm created successfully");
       setNewFirmName("");
     }
   };
 
+  const handleAddCompanyClick = (firmId: number) => {
+    setAddCompanyFirmId(firmId);
+    setNewCompanyName("");
+    setEditingCompanyId(null);
+    setEditingCompanyName("");
+  };
+
   const handleAddCompany = async () => {
-    if (addCompanyOpenIndex === null) return;
-    if (!newCompanyName.trim()) return;
+    if (addCompanyFirmId === null || !newCompanyName.trim()) return;
 
-    const firmId = filteredFirms[addCompanyOpenIndex].id;
     const trimmed = newCompanyName.trim();
-
     const { data, error } = await supabase
       .from("companies")
-      .insert([{ name: trimmed, firm_id: firmId }])
+      .insert([{ name: trimmed, firm_id: addCompanyFirmId }])
       .select("id, name, firm_id");
 
     if (error) {
@@ -185,43 +158,33 @@ export default function FirmsPage() {
       return;
     }
 
-    const created = data && data[0];
-    if (created) {
+    if (data && data[0]) {
       setFirms((prev) =>
         prev.map((f) =>
-          f.id === firmId ? { ...f, companies: [...f.companies, created] } : f
+          f.id === addCompanyFirmId
+            ? { ...f, companies: [...f.companies, data[0]] }
+            : f
         )
       );
       toast.success("Company added successfully");
       setNewCompanyName("");
-      setAddCompanyOpenIndex(null);
+      setAddCompanyFirmId(null);
     }
   };
 
-  const startEditFirm = (e: React.MouseEvent, index: number) => {
-    e.stopPropagation();
-    setEditingFirmIndex(index);
-    setEditingFirmName(filteredFirms[index].name);
-    setExpandedIndex(index);
+  const startEditFirm = (firmId: number, name: string) => {
+    setEditingFirmId(firmId);
+    setEditingFirmName(name);
   };
 
-  const cancelEditFirm = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setEditingFirmIndex(null);
-    setEditingFirmName("");
-  };
+  const saveEditFirm = async () => {
+    if (editingFirmId === null || !editingFirmName.trim()) return;
 
-  const saveEditFirm = async (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (editingFirmIndex === null) return;
-    const firm = filteredFirms[editingFirmIndex];
     const trimmed = editingFirmName.trim();
-    if (!trimmed) return;
-
     const { data, error } = await supabase
       .from("firms")
       .update({ name: trimmed })
-      .eq("id", firm.id)
+      .eq("id", editingFirmId)
       .select("id, name");
 
     if (error) {
@@ -231,37 +194,25 @@ export default function FirmsPage() {
 
     if (data && data[0]) {
       setFirms((prev) =>
-        prev.map((f) => (f.id === firm.id ? { ...f, name: data[0].name } : f))
+        prev.map((f) =>
+          f.id === editingFirmId ? { ...f, name: data[0].name } : f
+        )
       );
       toast.success("Firm updated");
-      setEditingFirmIndex(null);
+      setEditingFirmId(null);
       setEditingFirmName("");
     }
   };
 
-  const startEditCompany = (
-    e: React.MouseEvent,
-    company: Company,
-    firmIndex: number
-  ) => {
-    e.stopPropagation();
+  const startEditCompany = (company: Company) => {
     setEditingCompanyId(company.id);
     setEditingCompanyName(company.name);
-    setExpandedIndex(firmIndex);
   };
 
-  const cancelEditCompany = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setEditingCompanyId(null);
-    setEditingCompanyName("");
-  };
+  const saveEditCompany = async () => {
+    if (editingCompanyId === null || !editingCompanyName.trim()) return;
 
-  const saveEditCompany = async (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (editingCompanyId === null) return;
     const trimmed = editingCompanyName.trim();
-    if (!trimmed) return;
-
     const { data, error } = await supabase
       .from("companies")
       .update({ name: trimmed })
@@ -273,15 +224,14 @@ export default function FirmsPage() {
       return;
     }
 
-    const updated = data && data[0];
-    if (updated) {
+    if (data && data[0]) {
       setFirms((prev) =>
         prev.map((f) =>
-          f.id === updated.firm_id
+          f.id === data[0].firm_id
             ? {
                 ...f,
                 companies: f.companies.map((c) =>
-                  c.id === updated.id ? { ...c, name: updated.name } : c
+                  c.id === data[0].id ? { ...c, name: data[0].name } : c
                 ),
               }
             : f
@@ -293,16 +243,17 @@ export default function FirmsPage() {
     }
   };
 
-  const handleDeleteCompany = async (e: React.MouseEvent, compId: number) => {
-    e.stopPropagation();
+  const handleDeleteCompany = async (compId: number) => {
     const { error } = await supabase
       .from("companies")
       .delete()
       .eq("id", compId);
+
     if (error) {
       toast.error(`Error deleting company: ${error.message}`);
       return;
     }
+
     setFirms((prev) =>
       prev.map((f) => ({
         ...f,
@@ -375,7 +326,7 @@ export default function FirmsPage() {
                       >
                         <td className="p-3">{index + 1}.</td>
                         <td className="p-3 font-medium cursor-pointer">
-                          {editingFirmIndex === index ? (
+                          {editingFirmId === firm.id ? (
                             <div className="flex items-center gap-2">
                               <Input
                                 value={editingFirmName}
@@ -397,7 +348,7 @@ export default function FirmsPage() {
                                 variant="outline"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={cancelEditFirm}
+                                onClick={() => setEditingFirmId(null)}
                               >
                                 <X className="h-4 w-4" />
                               </Button>
@@ -411,24 +362,25 @@ export default function FirmsPage() {
                             </>
                           )}
                         </td>
-
                         <td className="p-3 text-right space-x-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 rounded-md"
-                            onClick={(e) => startEditFirm(e, index)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-
                           <Button
                             variant="outline"
                             size="icon"
                             className="h-8 w-8 rounded-md"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteClick(index);
+                              startEditFirm(firm.id, firm.name);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 rounded-md"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(firm.id);
                             }}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -467,7 +419,7 @@ export default function FirmsPage() {
                                       variant="outline"
                                       size="icon"
                                       className="h-8 w-8"
-                                      onClick={cancelEditCompany}
+                                      onClick={() => setEditingCompanyId(null)}
                                     >
                                       <X className="h-4 w-4" />
                                     </Button>
@@ -481,20 +433,21 @@ export default function FirmsPage() {
                                   variant="outline"
                                   size="icon"
                                   className="h-8 w-8 rounded-md"
-                                  onClick={(e) =>
-                                    startEditCompany(e, comp, index)
-                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    startEditCompany(comp);
+                                  }}
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </Button>
-
                                 <Button
                                   variant="outline"
                                   size="icon"
                                   className="h-8 w-8 rounded-md"
-                                  onClick={(e) =>
-                                    handleDeleteCompany(e, comp.id)
-                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteCompany(comp.id);
+                                  }}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -505,7 +458,7 @@ export default function FirmsPage() {
                           <tr>
                             <td></td>
                             <td colSpan={2} className="p-0">
-                              {addCompanyOpenIndex === index ? (
+                              {addCompanyFirmId === firm.id ? (
                                 <div className="bg-white border border-gray-200 rounded-lg p-4 mx-4 mt-2">
                                   <h3 className="text-lg font-semibold text-gray-800 mb-2">
                                     Add New Company
@@ -532,7 +485,7 @@ export default function FirmsPage() {
                                   className="w-full py-2 bg-[#6587DE] text-white flex items-center justify-center gap-2 hover:bg-blue-700"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleAddCompanyClick(index);
+                                    handleAddCompanyClick(firm.id);
                                   }}
                                 >
                                   <Plus className="h-4 w-4" />

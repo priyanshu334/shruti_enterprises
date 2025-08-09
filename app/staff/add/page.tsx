@@ -593,7 +593,7 @@ export default function AddStaffPage() {
                 {pv ? (
                   <div className="mt-3 flex items-center space-x-3">
                     {pv.type?.startsWith("image/") ? (
-                      <div className="w-20 h-20 rounded overflow-hidden border">
+                      <div className="w-40 h-40 rounded overflow-hidden border">
                         <img
                           src={pv.url}
                           alt={pv.name}
@@ -601,7 +601,7 @@ export default function AddStaffPage() {
                         />
                       </div>
                     ) : (
-                      <div className="w-20 h-20 rounded border flex items-center justify-center text-xs px-2">
+                      <div className="w-40 h-40 rounded border flex items-center justify-center text-xs px-2">
                         <div>
                           <div className="font-medium">{pv.name}</div>
                         </div>

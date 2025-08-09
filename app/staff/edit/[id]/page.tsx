@@ -33,6 +33,13 @@ import Navbar from "@/components/Navbar";
 type Firm = { id: string; name: string };
 type Company = { id: string; name: string; firm_id?: string };
 
+type MediaPreview = {
+  url: string;
+  name: string;
+  type: string;
+  size: number;
+} | null;
+
 export default function EditStaffPage() {
   const router = useRouter();
   const params = useParams();
@@ -72,24 +79,9 @@ export default function EditStaffPage() {
   });
 
   const [previews, setPreviews] = useState<{
-    staffImage: {
-      url: string;
-      name: string;
-      type: string;
-      size: number;
-    } | null;
-    aadharCard: {
-      url: string;
-      name: string;
-      type: string;
-      size: number;
-    } | null;
-    bankPassbook: {
-      url: string;
-      name: string;
-      type: string;
-      size: number;
-    } | null;
+    staffImage: MediaPreview;
+    aadharCard: MediaPreview;
+    bankPassbook: MediaPreview;
   }>({
     staffImage: null,
     aadharCard: null,
@@ -110,7 +102,6 @@ export default function EditStaffPage() {
 
   const [isPending, startTransition] = useTransition();
 
-  // Fetch firms & companies from Supabase Storage
   useEffect(() => {
     let mounted = true;
 
@@ -145,7 +136,6 @@ export default function EditStaffPage() {
     };
   }, [supabase]);
 
-  // Load staff data from your existing API route
   useEffect(() => {
     let mounted = true;
 
@@ -161,7 +151,6 @@ export default function EditStaffPage() {
         if (!res.ok) throw new Error("Failed to load staff data");
 
         const json = await res.json();
-
         if (!mounted) return;
 
         if (json.success) {
@@ -188,33 +177,33 @@ export default function EditStaffPage() {
           setExitDate(staff.exit_date ? new Date(staff.exit_date) : undefined);
           setIsActive(staff.is_active ?? true);
 
-          setPreviews((p) => ({
-            ...p,
+          // Set previews for existing files
+          setPreviews({
             staffImage: staff.staff_image_url
               ? {
                   url: staff.staff_image_url,
-                  name: "Current Image",
-                  type: "",
+                  name: "staff-image.jpg",
+                  type: "image/jpeg",
                   size: 0,
                 }
               : null,
             aadharCard: staff.aadhar_card_url
               ? {
                   url: staff.aadhar_card_url,
-                  name: "Current Aadhar",
-                  type: "",
+                  name: "aadhar-card.jpg",
+                  type: "image/jpeg",
                   size: 0,
                 }
               : null,
             bankPassbook: staff.bank_passbook_url
               ? {
                   url: staff.bank_passbook_url,
-                  name: "Current Passbook",
-                  type: "",
+                  name: "bank-passbook.jpg",
+                  type: "image/jpeg",
                   size: 0,
                 }
               : null,
-          }));
+          });
         } else {
           setError(json.message || "Failed to load staff data");
         }
@@ -231,7 +220,9 @@ export default function EditStaffPage() {
     return () => {
       mounted = false;
       Object.values(previews).forEach((p) => {
-        if (p?.url) URL.revokeObjectURL(p.url);
+        if (p?.url && p.url.startsWith("blob:")) {
+          URL.revokeObjectURL(p.url);
+        }
       });
     };
   }, [staffId]);
@@ -248,18 +239,18 @@ export default function EditStaffPage() {
     setCompanies(filtered.length ? filtered : rawCompanies);
   }, [form.firmId, rawCompanies]);
 
-  // Form update helper
   const update = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  // File handling (preview + save File object)
   const handleFileChange = (
     e: ChangeEvent<HTMLInputElement>,
     field: "staffImage" | "aadharCard" | "bankPassbook"
   ) => {
     const file = e.target.files?.[0] ?? null;
     const prev = previews[field];
-    if (prev?.url) URL.revokeObjectURL(prev.url);
+    if (prev?.url && prev.url.startsWith("blob:")) {
+      URL.revokeObjectURL(prev.url);
+    }
 
     if (file) {
       const url = URL.createObjectURL(file);
@@ -276,7 +267,9 @@ export default function EditStaffPage() {
 
   const removeFile = (field: "staffImage" | "aadharCard" | "bankPassbook") => {
     const prev = previews[field];
-    if (prev?.url) URL.revokeObjectURL(prev.url);
+    if (prev?.url && prev.url.startsWith("blob:")) {
+      URL.revokeObjectURL(prev.url);
+    }
 
     setPreviews((p) => ({ ...p, [field]: null }));
     setMedia((m) => ({ ...m, [field]: null }));
@@ -295,101 +288,76 @@ export default function EditStaffPage() {
     return `${Math.round(bytes / (1024 * 1024))} MB`;
   };
 
-  // Upload files to Supabase Storage and get public URLs
-  const uploadFile = async (
-    file: File,
-    folder: string
-  ): Promise<string | null> => {
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${folder}/${staffId}-${Date.now()}.${fileExt}`;
-    const { data, error } = await supabase.storage
-      .from("staff-files")
-      .upload(fileName, file, { upsert: true });
-
-    if (error) {
-      setError("Failed to upload file: " + error.message);
-      return null;
-    }
-
-    // Get public URL
-    const { data: publicUrlData } = supabase.storage
-      .from("staff-files")
-      .getPublicUrl(fileName);
-
-    return publicUrlData.publicUrl;
-  };
-
-  // Save (update) staff data using fetch API PUT including file uploads
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) {
       alert("Please enter the staff name.");
       return;
     }
 
-    startTransition(async () => {
-      setSaving(true);
-      setError(null);
-      try {
-        // Create FormData instead of JSON
-        const formData = new FormData();
+    setSaving(true);
+    setError(null);
 
-        // Append all text fields, matching the keys your API expects
-        formData.append("firmId", form.firmId || "");
-        formData.append("companyId", form.companyId || "");
-        formData.append("name", form.name);
-        formData.append("fatherName", form.fatherName);
-        formData.append("address", form.address);
-        formData.append("aadharNumber", form.aadhar);
-        formData.append("phoneNumber", form.phone);
-        formData.append("gender", form.gender);
-        formData.append("bloodGroup", form.bloodGroup);
-        formData.append("dob", dob ? dob.toISOString() : "");
-        formData.append("esicNumber", form.esic);
-        formData.append("uanNumber", form.uan);
-        formData.append("doj", doj ? doj.toISOString() : "");
-        formData.append("exitDate", exitDate ? exitDate.toISOString() : "");
-        formData.append("accountNumber", form.account);
-        formData.append("ifscCode", form.ifsc);
-        formData.append("isActive", isActive ? "true" : "false");
+    try {
+      const formData = new FormData();
 
-        // Append files if selected
-        if (media.staffImage) formData.append("staffImage", media.staffImage);
-        if (media.aadharCard) formData.append("aadharCard", media.aadharCard);
-        if (media.bankPassbook)
-          formData.append("bankPassbook", media.bankPassbook);
+      // Append all form fields
+      formData.append("firmId", form.firmId || "");
+      formData.append("companyId", form.companyId || "");
+      formData.append("name", form.name);
+      formData.append("fatherName", form.fatherName);
+      formData.append("address", form.address);
+      formData.append("aadharNumber", form.aadhar);
+      formData.append("phoneNumber", form.phone);
+      formData.append("gender", form.gender);
+      formData.append("bloodGroup", form.bloodGroup);
+      formData.append("dob", dob ? dob.toISOString() : "");
+      formData.append("esicNumber", form.esic);
+      formData.append("uanNumber", form.uan);
+      formData.append("doj", doj ? doj.toISOString() : "");
+      formData.append("exitDate", exitDate ? exitDate.toISOString() : "");
+      formData.append("accountNumber", form.account);
+      formData.append("ifscCode", form.ifsc);
+      formData.append("isActive", isActive ? "true" : "false");
 
-        // Send multipart/form-data request
-        const res = await fetch(`/api/staff/edit/${staffId}`, {
-          method: "PUT",
-          body: formData,
-        });
+      // Only append files if they're new (not existing URLs)
+      if (media.staffImage) formData.append("staffImage", media.staffImage);
+      if (media.aadharCard) formData.append("aadharCard", media.aadharCard);
+      if (media.bankPassbook)
+        formData.append("bankPassbook", media.bankPassbook);
 
-        if (!res.ok) {
-          const errJson = await res.json();
-          throw new Error(errJson.message || "Failed to update staff");
-        }
+      // Send to API route
+      const res = await fetch(`/api/staff/edit/${staffId}`, {
+        method: "PUT",
+        body: formData,
+      });
 
-        const json = await res.json();
-
-        if (json.success) {
-          alert("Staff updated successfully!");
-          router.push("/staff");
-        } else {
-          alert("Error: " + (json.message || "Unknown error"));
-        }
-      } catch (err: any) {
-        setError(err.message || "Failed to update staff");
-      } finally {
-        setSaving(false);
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.message || "Failed to update staff");
       }
-    });
+
+      const json = await res.json();
+
+      if (json.success) {
+        alert("Staff updated successfully!");
+        router.push("/staff");
+      } else {
+        throw new Error(json.message || "Unknown error");
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to update staff");
+    } finally {
+      setSaving(false);
+    }
   };
-  if (loading)
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         Loading staff data...
       </div>
     );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -745,7 +713,7 @@ export default function EditStaffPage() {
                 {pv ? (
                   <div className="mt-3 flex items-center space-x-3">
                     {pv.type?.startsWith("image/") ? (
-                      <div className="w-20 h-20 rounded overflow-hidden border">
+                      <div className="w-40 h-40 rounded overflow-hidden border">
                         <img
                           src={pv.url}
                           alt={pv.name}
@@ -763,7 +731,7 @@ export default function EditStaffPage() {
                     <div className="flex-1">
                       <div className="text-sm font-medium">{pv.name}</div>
                       <div className="text-xs text-gray-500">
-                        {fmtSize(pv.size)}
+                        {pv.size > 0 ? fmtSize(pv.size) : "Existing file"}
                       </div>
                     </div>
 
@@ -797,9 +765,9 @@ export default function EditStaffPage() {
           variant="outline"
           className="rounded-md"
           onClick={() => {
-            // reset form to loaded staff data or clear? For simplicity, reload page
-            router.refresh();
+            router.push("/staff");
           }}
+          disabled={saving}
         >
           Cancel
         </Button>
@@ -807,7 +775,7 @@ export default function EditStaffPage() {
         <Button
           onClick={handleSave}
           className="bg-blue-600 hover:bg-blue-700 text-white rounded-md"
-          disabled={saving || isPending}
+          disabled={saving}
         >
           {saving ? "Saving..." : "Save Changes"}
         </Button>
