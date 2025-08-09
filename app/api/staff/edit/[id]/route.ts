@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/utils/supabase/server";
 import { v2 as cloudinary } from "cloudinary";
 
-// Cloudinary config — make sure your env vars are set!
+// Cloudinary config — ensure env vars are present
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
   api_key: process.env.CLOUDINARY_API_KEY!,
@@ -10,8 +10,8 @@ cloudinary.config({
   secure: true,
 });
 
-// Helper to upload file to Cloudinary
-async function uploadFileToCloudinary(file: File) {
+// Helper: upload file buffer to Cloudinary
+async function uploadFileToCloudinary(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
@@ -29,17 +29,25 @@ async function uploadFileToCloudinary(file: File) {
   });
 }
 
-export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: Request) {
   try {
+    // Parse the id param from URL
+    const url = new URL(req.url);
+    const pathname = url.pathname; // e.g. /api/staff/<id>
+    const id = pathname.split("/").pop();
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: "Missing staff ID in URL" },
+        { status: 400 }
+      );
+    }
+
     const supabase = await createSupabaseServerClient();
 
-    const id = params.id;
     const formData = await req.formData();
 
-    // Prepare update fields — align keys with your DB columns
+    // Extract fields with fallback defaults
     const updates: Record<string, any> = {
       firm_id: formData.get("firmId")?.toString() || null,
       company_id: formData.get("companyId")?.toString() || null,
@@ -60,7 +68,7 @@ export async function PUT(
       is_active: formData.get("isActive")?.toString() === "true",
     };
 
-    // Files from formData
+    // Handle files from formData
     const staffImage = formData.get("staffImage") as File | null;
     const aadharCard = formData.get("aadharCard") as File | null;
     const bankPassbook = formData.get("bankPassbook") as File | null;
@@ -75,7 +83,7 @@ export async function PUT(
       updates.bank_passbook_url = await uploadFileToCloudinary(bankPassbook);
     }
 
-    // Update staff record and return updated data
+    // Update record in Supabase
     const { data, error } = await supabase
       .from("staff")
       .update(updates)
