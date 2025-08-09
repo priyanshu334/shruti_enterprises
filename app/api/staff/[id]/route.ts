@@ -3,13 +3,12 @@ import { createSupabaseServerClient } from "@/utils/supabase/server";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const supabase = await createSupabaseServerClient();
 
-    // Optional: validate id if needed
-    const staffId = params.id;
+    const staffId = context.params.id;
 
     const { data, error } = await supabase
       .from("staff")
@@ -31,14 +30,13 @@ export async function GET(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const supabase = await createSupabaseServerClient();
 
-    const staffId = params.id;
+    const staffId = context.params.id;
 
-    // Delete and return deleted rows to verify deletion
     const { data, error } = await supabase
       .from("staff")
       .delete()
