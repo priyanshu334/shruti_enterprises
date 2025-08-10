@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { Pencil, Trash2, Plus, Download, Search } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { toast } from "react-hot-toast";
 import { createSupabaseBrowserClient } from "@/utils/supabase/client";
 import DeleteFirmDialog from "@/components/FirmDetailsDialog";
 import DeleteCompanyDialog from "@/components/DeleteCompanyDialog";
+import Link from "next/link";
 
 interface Company {
   id: number;
@@ -232,16 +233,36 @@ export default function FirmsPage() {
       <Navbar />
 
       {/* Search */}
-      <div className="flex gap-2 my-4 mx-8">
-        <Input
-          placeholder="Search by Firm or Company Name"
-          className="flex-1 border-gray-400"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <Button className="bg-[#6587DE] text-white hover:bg-blue-700">
-          Search
-        </Button>
+      <div className="flex flex-wrap items-center justify-between my-4 mx-8 gap-2">
+        {/* Search + Search Button */}
+        <div className="flex flex-1 gap-2 min-w-[250px]">
+          <Input
+            placeholder="Search by Firm or Company Name"
+            className="flex-1 border-gray-400"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <Button className="bg-[#6587DE] text-white hover:bg-blue-700">
+            <Search className="h-4 w-4 mr-1" />
+            Search
+          </Button>
+        </div>
+
+        {/* Download Buttons */}
+        <div className="flex gap-2">
+          <Link href="/firm/getFirms">
+            <Button className="bg-[#6587DE] text-white hover:bg-blue-700">
+              <Download className="h-4 w-4 mr-1" />
+              Firm Data
+            </Button>
+          </Link>
+          <Link href="/firm/getstaff">
+            <Button className="bg-[#6587DE] text-white hover:bg-blue-700">
+              <Download className="h-4 w-4 mr-1" />
+              Staff Data
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <main className="px-8 py-6">

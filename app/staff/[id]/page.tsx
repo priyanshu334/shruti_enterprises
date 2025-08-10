@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -53,37 +52,42 @@ interface Staff {
 export default function EmployeeProfilePage() {
   const router = useRouter();
   const params = useParams();
-  const staffId = params.id as string;
+
+  const staffId = typeof params?.id === "string" ? params.id : null;
 
   const [staff, setStaff] = useState<Staff | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  // Fetch staff data
+  // Fetch staff data once params are available
   useEffect(() => {
     if (!staffId) return;
 
-    setLoading(true);
-    fetch(`/api/staff/${staffId}`, { cache: "no-store" })
-      .then(async (res) => {
+    const fetchStaff = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/staff/${staffId}`, { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to fetch staff");
-        return res.json();
-      })
-      .then((data) => {
-        if (data.success) setStaff(data.data);
-        else setStaff(null);
-      })
-      .catch((err) => {
+        const data = await res.json();
+        if (data.success) {
+          setStaff(data.data);
+        } else {
+          setStaff(null);
+        }
+      } catch (err) {
         console.error(err);
         setStaff(null);
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStaff();
   }, [staffId]);
 
   // Delete staff
   const handleDelete = async () => {
     if (!staff) return;
-
     const confirmed = confirm("Are you sure you want to delete this staff?");
     if (!confirmed) return;
 
@@ -92,7 +96,6 @@ export default function EmployeeProfilePage() {
         method: "DELETE",
       });
       const data = await res.json();
-
       if (data.success) {
         setDeleteDialogOpen(false);
         router.push("/staff");
@@ -104,19 +107,16 @@ export default function EmployeeProfilePage() {
     }
   };
 
-  // Generate PDF
+  // Download PDF
   const handleDownloadPDF = () => {
     if (!staff) return;
     const doc = new jsPDF();
-
-    // Title
     doc.setFontSize(18);
     doc.text("Employee Profile", 14, 20);
     doc.setFontSize(12);
     doc.text(`Name: ${staff.name}`, 14, 30);
     doc.text(`Status: ${staff.is_active ? "Active" : "Inactive"}`, 14, 36);
 
-    // AutoTable for details
     autoTable(doc, {
       startY: 45,
       head: [["Field", "Value"]],
@@ -141,7 +141,6 @@ export default function EmployeeProfilePage() {
       theme: "grid",
     });
 
-    // Add Images (if available)
     let finalY = (doc as any).lastAutoTable.finalY + 10;
     const loadImageAndAdd = (
       url: string,
@@ -182,25 +181,26 @@ export default function EmployeeProfilePage() {
         await loadImageAndAdd(staff.bank_passbook_url, 14, finalY, 60, 40);
         doc.text("Bank Passbook", 14, finalY + 45);
       }
-
-      // Save PDF
       doc.save(`${staff.name.replace(/\s+/g, "_")}_Profile.pdf`);
     })();
   };
 
-  if (loading)
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         Loading staff data...
       </div>
     );
+  }
 
-  if (!staff)
+  if (!staff) {
     return (
       <div className="min-h-screen flex items-center justify-center text-red-600 font-semibold">
         Staff not found.
       </div>
     );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
