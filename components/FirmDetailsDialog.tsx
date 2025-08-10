@@ -28,7 +28,7 @@ const DeleteFirmDialog: React.FC<DeleteFirmDialogProps> = ({
       <DialogContent className="sm:max-w-md text-center">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">
-            Delete Staff
+            Delete Firm and companies associated with it.
           </DialogTitle>
         </DialogHeader>
 
