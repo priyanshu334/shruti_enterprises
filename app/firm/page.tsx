@@ -10,6 +10,8 @@ import Navbar from "@/components/Navbar";
 import DeleteStaffDialog from "@/components/DeleteStaffDialog";
 import { toast } from "react-hot-toast";
 import { createSupabaseBrowserClient } from "@/utils/supabase/client";
+import FirmDetailsDialog from "@/components/FirmDetailsDialog";
+import DeleteFirmDialog from "@/components/FirmDetailsDialog";
 
 interface Company {
   id: number;
@@ -505,7 +507,7 @@ export default function FirmsPage() {
         </Card>
       </main>
 
-      <DeleteStaffDialog
+      <DeleteFirmDialog
         open={deleteDialogOpen}
         setOpen={setDeleteDialogOpen}
         onConfirmDelete={confirmDelete}
