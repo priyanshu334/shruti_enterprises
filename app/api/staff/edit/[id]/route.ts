@@ -10,7 +10,6 @@ cloudinary.config({
   secure: true,
 });
 
-// Upload file buffer to Cloudinary
 async function uploadToCloudinary(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
@@ -28,13 +27,13 @@ async function uploadToCloudinary(file: File): Promise<string> {
   });
 }
 
-// Upload file to Supabase Storage
-async function uploadToSupabase(
+async function uploadToSupabaseWithPath(
   supabase: any,
   file: File | null,
   bucket: string
-): Promise<string | null> {
-  if (!file || file.size === 0) return null;
+): Promise<{ filePath: string | null; publicUrl: string | null }> {
+  if (!file || file.size === 0) return { filePath: null, publicUrl: null };
+
   const filePath = `${randomUUID()}-${file.name}`;
   const { error } = await supabase.storage
     .from(bucket)
@@ -44,7 +43,8 @@ async function uploadToSupabase(
   const { data: publicUrlData } = supabase.storage
     .from(bucket)
     .getPublicUrl(filePath);
-  return publicUrlData.publicUrl;
+
+  return { filePath, publicUrl: publicUrlData.publicUrl };
 }
 
 export async function PUT(req: Request) {
@@ -61,7 +61,6 @@ export async function PUT(req: Request) {
     const supabase = await createSupabaseServerClient();
     const formData = await req.formData();
 
-    // Field updates
     const updates: Record<string, any> = {
       firm_id: formData.get("firmId")?.toString() || null,
       company_id: formData.get("companyId")?.toString() || null,
@@ -82,33 +81,35 @@ export async function PUT(req: Request) {
       is_active: formData.get("isActive")?.toString() === "true",
     };
 
-    // Files
     const staffImage = formData.get("staffImage") as File | null;
     const aadharCard = formData.get("aadharCard") as File | null;
     const bankPassbook = formData.get("bankPassbook") as File | null;
 
-    // Step 1: Upload to Supabase first
-    const [staffImageUrl, aadharCardUrl, bankPassbookUrl] = await Promise.all([
-      uploadToSupabase(supabase, staffImage, "staff-images"),
-      uploadToSupabase(supabase, aadharCard, "staff-documents"),
-      uploadToSupabase(supabase, bankPassbook, "staff-documents"),
+    // Upload to Supabase and store file paths for later deletion
+    const [
+      { filePath: staffPath, publicUrl: staffImageUrl },
+      { filePath: aadharPath, publicUrl: aadharCardUrl },
+      { filePath: passbookPath, publicUrl: bankPassbookUrl },
+    ] = await Promise.all([
+      uploadToSupabaseWithPath(supabase, staffImage, "staff-images"),
+      uploadToSupabaseWithPath(supabase, aadharCard, "staff-documents"),
+      uploadToSupabaseWithPath(supabase, bankPassbook, "staff-documents"),
     ]);
 
     if (staffImageUrl) updates.staff_image_url = staffImageUrl;
     if (aadharCardUrl) updates.aadhar_card_url = aadharCardUrl;
     if (bankPassbookUrl) updates.bank_passbook_url = bankPassbookUrl;
 
-    // Step 2: Update staff record immediately with Supabase URLs
+    // Save initial record with Supabase URLs
     const { data, error } = await supabase
       .from("staff")
       .update(updates)
       .eq("id", id)
       .select()
       .single();
-
     if (error) throw error;
 
-    // Step 3: Background Cloudinary upload
+    // Background Cloudinary upload + Supabase cleanup
     (async () => {
       try {
         const [cloudStaffUrl, cloudAadharUrl, cloudPassbookUrl] =
@@ -118,22 +119,39 @@ export async function PUT(req: Request) {
             bankPassbook?.size ? uploadToCloudinary(bankPassbook) : null,
           ]);
 
-        await supabase
-          .from("staff")
-          .update({
-            staff_image_url: cloudStaffUrl || staffImageUrl,
-            aadhar_card_url: cloudAadharUrl || aadharCardUrl,
-            bank_passbook_url: cloudPassbookUrl || bankPassbookUrl,
-          })
-          .eq("id", id);
+        const finalUpdates: Record<string, any> = {};
+
+        if (cloudStaffUrl) {
+          finalUpdates.staff_image_url = cloudStaffUrl;
+          if (staffPath) {
+            await supabase.storage.from("staff-images").remove([staffPath]);
+          }
+        }
+        if (cloudAadharUrl) {
+          finalUpdates.aadhar_card_url = cloudAadharUrl;
+          if (aadharPath) {
+            await supabase.storage.from("staff-documents").remove([aadharPath]);
+          }
+        }
+        if (cloudPassbookUrl) {
+          finalUpdates.bank_passbook_url = cloudPassbookUrl;
+          if (passbookPath) {
+            await supabase.storage.from("staff-documents").remove([passbookPath]);
+          }
+        }
+
+        if (Object.keys(finalUpdates).length > 0) {
+          await supabase.from("staff").update(finalUpdates).eq("id", id);
+        }
       } catch (bgErr) {
-        console.error("Background Cloudinary upload failed:", bgErr);
+        console.error("Background Cloudinary upload or Supabase cleanup failed:", bgErr);
       }
     })();
 
     return NextResponse.json({
       success: true,
-      message: "Staff updated successfully (files processing in background)",
+      message:
+        "Staff updated successfully. Files uploaded to Supabase and Cloudinary processing in background. Supabase files will be deleted after Cloudinary upload.",
       data,
     });
   } catch (err: any) {
