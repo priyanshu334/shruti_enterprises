@@ -70,7 +70,7 @@ export default function StaffTable({ staffList }: Props) {
                         {staff.name}
                       </p>
                       <p className="text-xs text-gray-500 font-mono">
-                        ID: bh12155255sms256
+                        ID: {staff.id}
                       </p>
                     </div>
                   </div>
