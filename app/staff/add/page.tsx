@@ -227,6 +227,42 @@ export default function AddStaffPage() {
 
       if (json.success) {
         alert("Staff added successfully!");
+        setForm({
+          name: "",
+          fatherName: "",
+          address: "",
+          aadhar: "",
+          phone: "",
+          gender: "",
+          bloodGroup: "",
+          esic: "",
+          uan: "",
+          account: "",
+          ifsc: "",
+          firmId: "",
+          companyId: "",
+        });
+        setDob(undefined);
+        setDoj(undefined);
+        setExitDate(undefined);
+        setIsActive(true);
+        setMedia({
+          staffImage: null,
+          aadharCard: null,
+          bankPassbook: null,
+        });
+        setPreviews({
+          staffImage: null,
+          aadharCard: null,
+          bankPassbook: null,
+        });
+        if (staffInputRef.current) staffInputRef.current.value = "";
+        if (aadharInputRef.current) aadharInputRef.current.value = "";
+        if (passbookInputRef.current) passbookInputRef.current.value = "";
+        startTransition(() => {
+          // Optionally, you can redirect or update the UI here
+          window.location.href = "/staff"; // Redirect to staff list
+        });
         // optionally reset form here if needed
       } else {
         alert("Error: " + (json.message || "Unknown error"));

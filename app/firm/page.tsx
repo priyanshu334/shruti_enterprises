@@ -12,6 +12,7 @@ import { toast } from "react-hot-toast";
 import { createSupabaseBrowserClient } from "@/utils/supabase/client";
 import FirmDetailsDialog from "@/components/FirmDetailsDialog";
 import DeleteFirmDialog from "@/components/FirmDetailsDialog";
+import DeleteCompanyDialog from "@/components/DeleteCompanyDialog";
 
 interface Company {
   id: number;
@@ -44,6 +45,8 @@ export default function FirmsPage() {
 
   const [editingCompanyId, setEditingCompanyId] = useState<number | null>(null);
   const [editingCompanyName, setEditingCompanyName] = useState("");
+  const [deleteCompanyDialogOpen, setDeleteCompanyDialogOpen] = useState(false);
+  const [deleteCompanyId, setDeleteCompanyId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchFirms();
@@ -243,6 +246,35 @@ export default function FirmsPage() {
       setEditingCompanyId(null);
       setEditingCompanyName("");
     }
+  };
+  const handleDeleteCompanyClick = (compId: number) => {
+    setDeleteCompanyId(compId);
+    setDeleteCompanyDialogOpen(true);
+  };
+
+  const confirmDeleteCompany = async () => {
+    if (deleteCompanyId === null) return;
+
+    const { error } = await supabase
+      .from("companies")
+      .delete()
+      .eq("id", deleteCompanyId);
+
+    if (error) {
+      toast.error(`Error deleting company: ${error.message}`);
+      return;
+    }
+
+    setFirms((prev) =>
+      prev.map((f) => ({
+        ...f,
+        companies: f.companies.filter((c) => c.id !== deleteCompanyId),
+      }))
+    );
+
+    toast.success("Company deleted");
+    setDeleteCompanyDialogOpen(false);
+    setDeleteCompanyId(null);
   };
 
   const handleDeleteCompany = async (compId: number) => {
@@ -448,7 +480,7 @@ export default function FirmsPage() {
                                   className="h-8 w-8 rounded-md"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDeleteCompany(comp.id);
+                                    handleDeleteCompanyClick(comp.id);
                                   }}
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -506,6 +538,11 @@ export default function FirmsPage() {
           </CardContent>
         </Card>
       </main>
+      <DeleteCompanyDialog
+        open={deleteCompanyDialogOpen}
+        setOpen={setDeleteCompanyDialogOpen}
+        onConfirmDelete={confirmDeleteCompany}
+      />
 
       <DeleteFirmDialog
         open={deleteDialogOpen}

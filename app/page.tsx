@@ -128,10 +128,16 @@ export default function StaffPage() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    setSearchTerm(value); // instantly update searchTerm for live search
+    setCurrentPage(1); // reset to first page for live search
+  };
 
   const handleSearch = () => {
     setSearchTerm(searchInput);
-    setCurrentPage(1); // Reset to first page after search
+    setCurrentPage(1);
   };
 
   return (
@@ -190,9 +196,9 @@ export default function StaffPage() {
                 <Input
                   placeholder="Search by name or Aadhaar..."
                   value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
+                  onChange={handleSearchInputChange} // now uses live search
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSearch();
+                    if (e.key === "Enter") handleSearch(); // still supports Enter search
                   }}
                   className="w-full sm:w-72 border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white"
                 />

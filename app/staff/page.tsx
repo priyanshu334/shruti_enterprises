@@ -49,6 +49,7 @@ export default function StaffPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
 
+  // Fetch firms & companies
   useEffect(() => {
     async function fetchFirmsAndCompanies() {
       try {
@@ -71,6 +72,7 @@ export default function StaffPage() {
     fetchFirmsAndCompanies();
   }, [supabase]);
 
+  // Fetch staff
   async function fetchAllStaff() {
     try {
       const res = await fetch("/api/staff");
@@ -91,6 +93,7 @@ export default function StaffPage() {
     fetchAllStaff();
   }, []);
 
+  // Merge firm/company names into staff data
   const staffWithNames = staffs.map((staff) => {
     const firm = firms.find((f) => f.id === staff.firm_id);
     const company = companies.find((c) => c.id === staff.company_id);
@@ -101,6 +104,18 @@ export default function StaffPage() {
     };
   });
 
+  // Search logic
+  const handleSearch = () => {
+    setSearchTerm(searchInput);
+    setCurrentPage(1);
+  };
+
+  // Live search when typing
+  useEffect(() => {
+    setSearchTerm(searchInput);
+    setCurrentPage(1);
+  }, [searchInput]);
+
   const filteredStaffs = staffWithNames.filter((staff) => {
     const term = searchTerm.toLowerCase().trim();
     if (!term) return true;
@@ -110,17 +125,12 @@ export default function StaffPage() {
     );
   });
 
-  // Pagination logic
+  // Pagination
   const totalPages = Math.ceil(filteredStaffs.length / itemsPerPage);
   const paginatedStaffs = filteredStaffs.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
-  const handleSearch = () => {
-    setSearchTerm(searchInput);
-    setCurrentPage(1); // Reset to first page
-  };
 
   return (
     <div className="min-h-screen bg-white">
