@@ -14,11 +14,14 @@ async function uploadToCloudinaryFromBuffer(file: File) {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
   return new Promise<string>((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({ resource_type: "auto" }, (err, result) => {
-      if (err) return reject(err);
-      if (!result?.secure_url) return reject(new Error("Upload failed"));
-      resolve(result.secure_url);
-    });
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: "auto" },
+      (err, result) => {
+        if (err) return reject(err);
+        if (!result?.secure_url) return reject(new Error("Upload failed"));
+        resolve(result.secure_url);
+      }
+    );
     stream.end(buffer);
   });
 }
@@ -56,6 +59,7 @@ export async function POST(req: Request) {
 
     const staffImage = formData.get("staffImage") as File | null;
     const aadharCard = formData.get("aadharCard") as File | null;
+    const aadharBackside = formData.get("aadharBackside") as File | null;
     const bankPassbook = formData.get("bankPassbook") as File | null;
 
     const supabase = await createSupabaseServerClient();
@@ -68,25 +72,37 @@ export async function POST(req: Request) {
         .from(bucket)
         .upload(filePath, file, { cacheControl: "3600", upsert: false });
       if (error) throw error;
-      const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+      const { data: publicUrlData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
       return publicUrlData.publicUrl;
     }
 
-    const [staffImageUrl, aadharCardUrl, bankPassbookUrl] = await Promise.all([
+    const [
+      staffImageUrl,
+      aadharCardUrl,
+      aadharBacksideUrl,
+      bankPassbookUrl,
+    ] = await Promise.all([
       uploadToSupabase(staffImage, "staff-images"),
       uploadToSupabase(aadharCard, "staff-documents"),
+      uploadToSupabase(aadharBackside, "staff-documents"),
       uploadToSupabase(bankPassbook, "staff-documents"),
     ]);
 
     // 2️⃣ Insert record with Supabase Storage URLs
-    const { data: insertedData, error: insertError } = await supabase.from("staff").insert([
-      {
-        ...fields,
-        staff_image_url: staffImageUrl,
-        aadhar_card_url: aadharCardUrl,
-        bank_passbook_url: bankPassbookUrl,
-      },
-    ]).select("id");
+    const { data: insertedData, error: insertError } = await supabase
+      .from("staff")
+      .insert([
+        {
+          ...fields,
+          staff_image_url: staffImageUrl,
+          aadhar_card_url: aadharCardUrl,
+          aadhar_backside_url: aadharBacksideUrl,
+          bank_passbook_url: bankPassbookUrl,
+        },
+      ])
+      .select("id");
 
     if (insertError) throw insertError;
 
@@ -95,17 +111,31 @@ export async function POST(req: Request) {
     // 3️⃣ Background Cloudinary upload (non-blocking)
     (async () => {
       try {
-        const [cloudStaffUrl, cloudAadharUrl, cloudPassbookUrl] = await Promise.all([
+        const [
+          cloudStaffUrl,
+          cloudAadharUrl,
+          cloudAadharBacksideUrl,
+          cloudPassbookUrl,
+        ] = await Promise.all([
           staffImage?.size ? uploadToCloudinaryFromBuffer(staffImage) : null,
           aadharCard?.size ? uploadToCloudinaryFromBuffer(aadharCard) : null,
-          bankPassbook?.size ? uploadToCloudinaryFromBuffer(bankPassbook) : null,
+          aadharBackside?.size
+            ? uploadToCloudinaryFromBuffer(aadharBackside)
+            : null,
+          bankPassbook?.size
+            ? uploadToCloudinaryFromBuffer(bankPassbook)
+            : null,
         ]);
 
-        await supabase.from("staff").update({
-          staff_image_url: cloudStaffUrl || staffImageUrl,
-          aadhar_card_url: cloudAadharUrl || aadharCardUrl,
-          bank_passbook_url: cloudPassbookUrl || bankPassbookUrl,
-        }).eq("id", staffId);
+        await supabase
+          .from("staff")
+          .update({
+            staff_image_url: cloudStaffUrl || staffImageUrl,
+            aadhar_card_url: cloudAadharUrl || aadharCardUrl,
+            aadhar_backside_url: cloudAadharBacksideUrl || aadharBacksideUrl,
+            bank_passbook_url: cloudPassbookUrl || bankPassbookUrl,
+          })
+          .eq("id", staffId);
       } catch (bgErr) {
         console.error("Background Cloudinary upload failed:", bgErr);
       }
@@ -114,10 +144,10 @@ export async function POST(req: Request) {
     // Respond immediately without waiting for Cloudinary
     return NextResponse.json({
       success: true,
-      message: "Staff added successfully. Files are being processed in background.",
+      message:
+        "Staff added successfully. Files are being processed in background.",
       data: insertedData,
     });
-
   } catch (err: any) {
     console.error("Add staff error:", err);
     return NextResponse.json(

@@ -3,7 +3,6 @@ import { createSupabaseServerClient } from "@/utils/supabase/server";
 import { v2 as cloudinary } from "cloudinary";
 import { randomUUID } from "crypto";
 
-// Cloudinary config
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
   api_key: process.env.CLOUDINARY_API_KEY!,
@@ -14,7 +13,6 @@ cloudinary.config({
 async function uploadToCloudinary(file: File, folder: string): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
-
   return new Promise<string>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       { resource_type: "auto", folder },
@@ -32,26 +30,23 @@ async function uploadToSupabaseWithPath(
   supabase: any,
   file: File | null,
   bucket: string
-): Promise<{ filePath: string | null; publicUrl: string | null }> {
+) {
   if (!file || file.size === 0) return { filePath: null, publicUrl: null };
-
   const filePath = `${randomUUID()}-${file.name}`;
   const { error } = await supabase.storage
     .from(bucket)
     .upload(filePath, file, { cacheControl: "3600", upsert: false });
   if (error) throw error;
-
   const { data: publicUrlData } = supabase.storage
     .from(bucket)
     .getPublicUrl(filePath);
-
   return { filePath, publicUrl: publicUrlData.publicUrl };
 }
 
 function extractSupabasePath(publicUrl?: string): string | null {
   if (!publicUrl) return null;
-  const urlParts = publicUrl.split("/storage/v1/object/public/");
-  return urlParts[1] || null;
+  const parts = publicUrl.split("/storage/v1/object/public/");
+  return parts[1] || null;
 }
 
 export async function PUT(req: Request) {
@@ -67,7 +62,7 @@ export async function PUT(req: Request) {
 
     const supabase = await createSupabaseServerClient();
 
-    // 1️⃣ Fetch old staff record to get old file paths
+    // 1️⃣ Fetch existing record
     const { data: existingStaff, error: fetchError } = await supabase
       .from("staff")
       .select("*")
@@ -75,8 +70,8 @@ export async function PUT(req: Request) {
       .single();
     if (fetchError) throw fetchError;
 
+    // 2️⃣ Parse form data
     const formData = await req.formData();
-
     const updates: Record<string, any> = {
       firm_id: formData.get("firmId")?.toString() || null,
       company_id: formData.get("companyId")?.toString() || null,
@@ -97,26 +92,31 @@ export async function PUT(req: Request) {
       is_active: formData.get("isActive")?.toString() === "true",
     };
 
+    // Files
     const staffImage = formData.get("staffImage") as File | null;
     const aadharCard = formData.get("aadharCard") as File | null;
+    const aadharBackside = formData.get("aadharBackside") as File | null;
     const bankPassbook = formData.get("bankPassbook") as File | null;
 
-    // 2️⃣ Upload to Supabase (temporary storage)
+    // 3️⃣ Upload to Supabase temp storage
     const [
       { filePath: newStaffPath, publicUrl: staffImageUrl },
       { filePath: newAadharPath, publicUrl: aadharCardUrl },
+      { filePath: newAadharBackPath, publicUrl: aadharBacksideUrl },
       { filePath: newPassbookPath, publicUrl: bankPassbookUrl },
     ] = await Promise.all([
       uploadToSupabaseWithPath(supabase, staffImage, "staff-images"),
       uploadToSupabaseWithPath(supabase, aadharCard, "staff-documents"),
+      uploadToSupabaseWithPath(supabase, aadharBackside, "staff-documents"),
       uploadToSupabaseWithPath(supabase, bankPassbook, "staff-documents"),
     ]);
 
     if (staffImageUrl) updates.staff_image_url = staffImageUrl;
     if (aadharCardUrl) updates.aadhar_card_url = aadharCardUrl;
+    if (aadharBacksideUrl) updates.aadhar_backside_url = aadharBacksideUrl;
     if (bankPassbookUrl) updates.bank_passbook_url = bankPassbookUrl;
 
-    // 3️⃣ Save record with Supabase URLs (temporary)
+    // 4️⃣ Update record immediately
     const { data, error } = await supabase
       .from("staff")
       .update(updates)
@@ -125,76 +125,75 @@ export async function PUT(req: Request) {
       .single();
     if (error) throw error;
 
-    // 4️⃣ Background Cloudinary upload & Supabase cleanup
+    // 5️⃣ Background Cloudinary upload + cleanup
     (async () => {
       try {
-        const [cloudStaffUrl, cloudAadharUrl, cloudPassbookUrl] =
-          await Promise.all([
-            staffImage?.size
-              ? uploadToCloudinary(staffImage, "staff-images")
-              : null,
-            aadharCard?.size
-              ? uploadToCloudinary(aadharCard, "staff-documents")
-              : null,
-            bankPassbook?.size
-              ? uploadToCloudinary(bankPassbook, "staff-documents")
-              : null,
-          ]);
+        const [
+          cloudStaffUrl,
+          cloudAadharUrl,
+          cloudAadharBackUrl,
+          cloudPassbookUrl,
+        ] = await Promise.all([
+          staffImage?.size
+            ? uploadToCloudinary(staffImage, "staff-images")
+            : null,
+          aadharCard?.size
+            ? uploadToCloudinary(aadharCard, "staff-documents")
+            : null,
+          aadharBackside?.size
+            ? uploadToCloudinary(aadharBackside, "staff-documents")
+            : null,
+          bankPassbook?.size
+            ? uploadToCloudinary(bankPassbook, "staff-documents")
+            : null,
+        ]);
 
         const finalUpdates: Record<string, any> = {};
 
-        // Staff image cleanup
+        // Staff Image
         if (cloudStaffUrl) {
           finalUpdates.staff_image_url = cloudStaffUrl;
-          const pathsToDelete = [
-            newStaffPath,
-            extractSupabasePath(existingStaff?.staff_image_url),
-          ].filter(Boolean) as string[];
-          if (pathsToDelete.length) {
-            await supabase.storage.from("staff-images").remove(pathsToDelete);
-          }
+          await supabase.storage.from("staff-images").remove(
+            [newStaffPath, extractSupabasePath(existingStaff?.staff_image_url)].filter(Boolean) as string[]
+          );
         }
 
-        // Aadhar card cleanup
+        // Aadhar Front
         if (cloudAadharUrl) {
           finalUpdates.aadhar_card_url = cloudAadharUrl;
-          const pathsToDelete = [
-            newAadharPath,
-            extractSupabasePath(existingStaff?.aadhar_card_url),
-          ].filter(Boolean) as string[];
-          if (pathsToDelete.length) {
-            await supabase.storage.from("staff-documents").remove(pathsToDelete);
-          }
+          await supabase.storage.from("staff-documents").remove(
+            [newAadharPath, extractSupabasePath(existingStaff?.aadhar_card_url)].filter(Boolean) as string[]
+          );
         }
 
-        // Bank passbook cleanup
+        // Aadhar Back
+        if (cloudAadharBackUrl) {
+          finalUpdates.aadhar_backside_url = cloudAadharBackUrl;
+          await supabase.storage.from("staff-documents").remove(
+            [newAadharBackPath, extractSupabasePath(existingStaff?.aadhar_backside_url)].filter(Boolean) as string[]
+          );
+        }
+
+        // Bank Passbook
         if (cloudPassbookUrl) {
           finalUpdates.bank_passbook_url = cloudPassbookUrl;
-          const pathsToDelete = [
-            newPassbookPath,
-            extractSupabasePath(existingStaff?.bank_passbook_url),
-          ].filter(Boolean) as string[];
-          if (pathsToDelete.length) {
-            await supabase.storage.from("staff-documents").remove(pathsToDelete);
-          }
+          await supabase.storage.from("staff-documents").remove(
+            [newPassbookPath, extractSupabasePath(existingStaff?.bank_passbook_url)].filter(Boolean) as string[]
+          );
         }
 
-        // Update DB with final Cloudinary URLs
         if (Object.keys(finalUpdates).length > 0) {
           await supabase.from("staff").update(finalUpdates).eq("id", id);
         }
       } catch (bgErr) {
-        console.error(
-          "Background Cloudinary upload or Supabase cleanup failed:",
-          bgErr
-        );
+        console.error("Background Cloudinary upload or cleanup failed:", bgErr);
       }
     })();
 
     return NextResponse.json({
       success: true,
       message:
-        "Staff updated successfully. Files first uploaded to Supabase, then moved to Cloudinary. Supabase cleanup runs in background.",
+        "Staff updated successfully. Files moved to Cloudinary in background.",
       data,
     });
   } catch (err: any) {

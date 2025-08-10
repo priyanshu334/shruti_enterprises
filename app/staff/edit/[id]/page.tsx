@@ -71,25 +71,30 @@ export default function EditStaffPage() {
   const [media, setMedia] = useState<{
     staffImage: File | null;
     aadharCard: File | null;
+    aadharBackside: File | null;
     bankPassbook: File | null;
   }>({
     staffImage: null,
     aadharCard: null,
+    aadharBackside: null,
     bankPassbook: null,
   });
 
   const [previews, setPreviews] = useState<{
     staffImage: MediaPreview;
     aadharCard: MediaPreview;
+    aadharBackside: MediaPreview;
     bankPassbook: MediaPreview;
   }>({
     staffImage: null,
     aadharCard: null,
+    aadharBackside: null,
     bankPassbook: null,
   });
 
   const staffInputRef = useRef<HTMLInputElement | null>(null);
   const aadharInputRef = useRef<HTMLInputElement | null>(null);
+  const aadharBackInputRef = useRef<HTMLInputElement | null>(null);
   const passbookInputRef = useRef<HTMLInputElement | null>(null);
 
   const [firms, setFirms] = useState<Firm[]>([]);
@@ -195,6 +200,14 @@ export default function EditStaffPage() {
                   size: 0,
                 }
               : null,
+            aadharBackside: staff.aadhar_backside_url
+              ? {
+                  url: staff.aadhar_backside_url,
+                  name: "aadhar-backside.jpg",
+                  type: "image/jpeg",
+                  size: 0,
+                }
+              : null,
             bankPassbook: staff.bank_passbook_url
               ? {
                   url: staff.bank_passbook_url,
@@ -244,7 +257,7 @@ export default function EditStaffPage() {
 
   const handleFileChange = (
     e: ChangeEvent<HTMLInputElement>,
-    field: "staffImage" | "aadharCard" | "bankPassbook"
+    field: "staffImage" | "aadharCard" | "aadharBackside" | "bankPassbook"
   ) => {
     const file = e.target.files?.[0] ?? null;
     const prev = previews[field];
@@ -265,7 +278,9 @@ export default function EditStaffPage() {
     }
   };
 
-  const removeFile = (field: "staffImage" | "aadharCard" | "bankPassbook") => {
+  const removeFile = (
+    field: "staffImage" | "aadharCard" | "aadharBackside" | "bankPassbook"
+  ) => {
     const prev = previews[field];
     if (prev?.url && prev.url.startsWith("blob:")) {
       URL.revokeObjectURL(prev.url);
@@ -278,6 +293,8 @@ export default function EditStaffPage() {
       staffInputRef.current.value = "";
     if (field === "aadharCard" && aadharInputRef.current)
       aadharInputRef.current.value = "";
+    if (field === "aadharBackside" && aadharBackInputRef.current)
+      aadharBackInputRef.current.value = "";
     if (field === "bankPassbook" && passbookInputRef.current)
       passbookInputRef.current.value = "";
   };
@@ -322,6 +339,8 @@ export default function EditStaffPage() {
       // Only append files if they're new (not existing URLs)
       if (media.staffImage) formData.append("staffImage", media.staffImage);
       if (media.aadharCard) formData.append("aadharCard", media.aadharCard);
+      if (media.aadharBackside)
+        formData.append("aadharBackside", media.aadharBackside);
       if (media.bankPassbook)
         formData.append("bankPassbook", media.bankPassbook);
 
@@ -677,6 +696,11 @@ export default function EditStaffPage() {
             { label: "Staff Image", field: "staffImage", ref: staffInputRef },
             { label: "Aadhar Card", field: "aadharCard", ref: aadharInputRef },
             {
+              label: "Aadhar Backside",
+              field: "aadharBackside",
+              ref: aadharBackInputRef,
+            },
+            {
               label: "Bank Passbook",
               field: "bankPassbook",
               ref: passbookInputRef,
@@ -739,7 +763,11 @@ export default function EditStaffPage() {
                       type="button"
                       onClick={() =>
                         removeFile(
-                          field as "staffImage" | "aadharCard" | "bankPassbook"
+                          field as
+                            | "staffImage"
+                            | "aadharCard"
+                            | "aadharBackside"
+                            | "bankPassbook"
                         )
                       }
                       className="ml-2 inline-flex items-center justify-center p-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100"

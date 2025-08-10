@@ -43,6 +43,7 @@ interface Staff {
   ifsc_code: string;
   staff_image_url: string | null;
   aadhar_card_url: string | null;
+  aadhar_backside_url: string | null;
   bank_passbook_url: string | null;
   firm_id: string;
   company_id: string;
@@ -170,6 +171,11 @@ export default function EmployeeProfilePage() {
       if (staff.aadhar_card_url) {
         await loadImageAndAdd(staff.aadhar_card_url, 14, finalY, 60, 40);
         doc.text("Aadhar Card", 14, finalY + 45);
+        finalY += 55;
+      }
+      if (staff.aadhar_backside_url) {
+        await loadImageAndAdd(staff.aadhar_backside_url, 14, finalY, 60, 40);
+        doc.text("Aadhar Backside", 14, finalY + 45);
         finalY += 55;
       }
       if (staff.bank_passbook_url) {
@@ -381,6 +387,23 @@ export default function EmployeeProfilePage() {
                 <div className="absolute bottom-4 left-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <p className="text-white font-semibold text-lg">
                     Aadhar Card
+                  </p>
+                </div>
+              </div>
+            ) : null}
+            {staff.aadhar_backside_url ? (
+              <div className="group relative overflow-hidden rounded-2xl border border-gray-800">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"></div>
+                <img
+                  src={staff.aadhar_backside_url}
+                  alt="Aadhar Backside"
+                  width={500}
+                  height={300}
+                  className="rounded-2xl border-2 border-white shadow-lg object-cover w-full h-72 group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute bottom-4 left-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <p className="text-white font-semibold text-lg">
+                    Aadhar Backside
                   </p>
                 </div>
               </div>

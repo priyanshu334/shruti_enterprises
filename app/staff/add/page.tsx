@@ -44,6 +44,7 @@ interface FormErrors {
   companyId?: string;
   staffImage?: string;
   aadharCard?: string;
+  aadharBackside?: string;
   bankPassbook?: string;
   dob?: string;
   doj?: string;
@@ -81,10 +82,12 @@ export default function AddStaffPage() {
   const [media, setMedia] = useState<{
     staffImage: File | null;
     aadharCard: File | null;
+    aadharBackside: File | null;
     bankPassbook: File | null;
   }>({
     staffImage: null,
     aadharCard: null,
+    aadharBackside: null,
     bankPassbook: null,
   });
 
@@ -101,6 +104,12 @@ export default function AddStaffPage() {
       type: string;
       size: number;
     } | null;
+    aadharBackside: {
+      url: string;
+      name: string;
+      type: string;
+      size: number;
+    } | null;
     bankPassbook: {
       url: string;
       name: string;
@@ -109,12 +118,15 @@ export default function AddStaffPage() {
     } | null;
   }>({
     staffImage: null,
+
     aadharCard: null,
+    aadharBackside: null,
     bankPassbook: null,
   });
 
   const staffInputRef = useRef<HTMLInputElement | null>(null);
   const aadharInputRef = useRef<HTMLInputElement | null>(null);
+  const aadharBacksideInputRef = useRef<HTMLInputElement | null>(null);
   const passbookInputRef = useRef<HTMLInputElement | null>(null);
 
   const supabase = createBrowserClient(
@@ -217,6 +229,9 @@ export default function AddStaffPage() {
     if (media.aadharCard && media.aadharCard.size > 5 * 1024 * 1024) {
       newErrors.aadharCard = "Aadhar card must be less than 5MB";
     }
+    if (media.aadharBackside && media.aadharBackside.size > 5 * 1024 * 1024) {
+      newErrors.aadharBackside = "Aadhar card backside must be less than 5MB";
+    }
     if (media.bankPassbook && media.bankPassbook.size > 5 * 1024 * 1024) {
       newErrors.bankPassbook = "Passbook must be less than 5MB";
     }
@@ -230,6 +245,12 @@ export default function AddStaffPage() {
       !media.aadharCard.type.match(/(image\/|application\/pdf)/)
     ) {
       newErrors.aadharCard = "Only images or PDFs are allowed";
+    }
+    if (
+      media.aadharBackside &&
+      !media.aadharBackside.type.match(/(image\/|application\/pdf)/)
+    ) {
+      newErrors.aadharBackside = "Only images or PDFs are allowed";
     }
     if (
       media.bankPassbook &&
@@ -252,7 +273,7 @@ export default function AddStaffPage() {
 
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
-    field: "staffImage" | "aadharCard" | "bankPassbook"
+    field: "staffImage" | "aadharCard" | "bankPassbook" | "aadharBackside"
   ) => {
     const file = e.target.files?.[0] ?? null;
     const prev = previews[field];
@@ -273,7 +294,9 @@ export default function AddStaffPage() {
     }
   };
 
-  const removeFile = (field: "staffImage" | "aadharCard" | "bankPassbook") => {
+  const removeFile = (
+    field: "staffImage" | "aadharCard" | "bankPassbook" | "aadharBackside"
+  ) => {
     const prev = previews[field];
     if (prev?.url) URL.revokeObjectURL(prev.url);
 
@@ -284,6 +307,8 @@ export default function AddStaffPage() {
       staffInputRef.current.value = "";
     if (field === "aadharCard" && aadharInputRef.current)
       aadharInputRef.current.value = "";
+    if (field === "aadharBackside" && aadharBacksideInputRef.current)
+      aadharBacksideInputRef.current.value = "";
     if (field === "bankPassbook" && passbookInputRef.current)
       passbookInputRef.current.value = "";
   };
@@ -332,6 +357,8 @@ export default function AddStaffPage() {
 
     if (media.staffImage) formData.append("staffImage", media.staffImage);
     if (media.aadharCard) formData.append("aadharCard", media.aadharCard);
+    if (media.aadharBackside)
+      formData.append("aadharBackside", media.aadharBackside);
     if (media.bankPassbook) formData.append("bankPassbook", media.bankPassbook);
 
     setSaving(true);
@@ -366,15 +393,19 @@ export default function AddStaffPage() {
         setMedia({
           staffImage: null,
           aadharCard: null,
+          aadharBackside: null,
           bankPassbook: null,
         });
         setPreviews({
           staffImage: null,
           aadharCard: null,
+          aadharBackside: null,
           bankPassbook: null,
         });
         if (staffInputRef.current) staffInputRef.current.value = "";
         if (aadharInputRef.current) aadharInputRef.current.value = "";
+        if (aadharBacksideInputRef.current)
+          aadharBacksideInputRef.current.value = "";
         if (passbookInputRef.current) passbookInputRef.current.value = "";
         startTransition(() => {
           window.location.href = "/staff";
@@ -810,6 +841,11 @@ export default function AddStaffPage() {
             { label: "Staff Image*", field: "staffImage", ref: staffInputRef },
             { label: "Aadhar Card*", field: "aadharCard", ref: aadharInputRef },
             {
+              label: "Aadhar Card Backside*",
+              field: "aadharBackside",
+              ref: aadharBacksideInputRef,
+            },
+            {
               label: "Bank Passbook",
               field: "bankPassbook",
               ref: passbookInputRef,
@@ -840,7 +876,11 @@ export default function AddStaffPage() {
                     onChange={(e) =>
                       handleFileChange(
                         e,
-                        field as "staffImage" | "aadharCard" | "bankPassbook"
+                        field as
+                          | "staffImage"
+                          | "aadharCard"
+                          | "bankPassbook"
+                          | "aadharBackside"
                       )
                     }
                   />
@@ -925,11 +965,13 @@ export default function AddStaffPage() {
             setMedia({
               staffImage: null,
               aadharCard: null,
+              aadharBackside: null,
               bankPassbook: null,
             });
             setPreviews({
               staffImage: null,
               aadharCard: null,
+              aadharBackside: null,
               bankPassbook: null,
             });
             setErrors({});
