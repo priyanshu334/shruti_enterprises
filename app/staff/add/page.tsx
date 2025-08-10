@@ -567,8 +567,8 @@ export default function AddStaffPage() {
                     selected={dob}
                     onSelect={setDob}
                     initialFocus
-                    fromYear={1950}
-                    toYear={new Date().getFullYear() - 18}
+                    fromYear={1980}
+                    toYear={new Date().getFullYear()}
                   />
                 </PopoverContent>
               </Popover>
