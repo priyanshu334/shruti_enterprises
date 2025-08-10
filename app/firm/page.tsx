@@ -5,12 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Pencil, Trash2, Plus, Check, X } from "lucide-react";
+import { Pencil, Trash2, Plus } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import DeleteStaffDialog from "@/components/DeleteStaffDialog";
 import { toast } from "react-hot-toast";
 import { createSupabaseBrowserClient } from "@/utils/supabase/client";
-import FirmDetailsDialog from "@/components/FirmDetailsDialog";
 import DeleteFirmDialog from "@/components/FirmDetailsDialog";
 import DeleteCompanyDialog from "@/components/DeleteCompanyDialog";
 
@@ -33,18 +31,18 @@ export default function FirmsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
-  const [addCompanyFirmId, setAddCompanyFirmId] = useState<number | null>(null);
-  const [newCompanyName, setNewCompanyName] = useState("");
+  // Firm states
+  const [firmName, setFirmName] = useState("");
+  const [editingFirmId, setEditingFirmId] = useState<number | null>(null);
 
+  // Company states
+  const [addCompanyFirmId, setAddCompanyFirmId] = useState<number | null>(null);
+  const [companyName, setCompanyName] = useState("");
+  const [editingCompanyId, setEditingCompanyId] = useState<number | null>(null);
+
+  // Delete dialogs
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteFirmId, setDeleteFirmId] = useState<number | null>(null);
-
-  const [newFirmName, setNewFirmName] = useState("");
-  const [editingFirmId, setEditingFirmId] = useState<number | null>(null);
-  const [editingFirmName, setEditingFirmName] = useState("");
-
-  const [editingCompanyId, setEditingCompanyId] = useState<number | null>(null);
-  const [editingCompanyName, setEditingCompanyName] = useState("");
   const [deleteCompanyDialogOpen, setDeleteCompanyDialogOpen] = useState(false);
   const [deleteCompanyId, setDeleteCompanyId] = useState<number | null>(null);
 
@@ -87,117 +85,26 @@ export default function FirmsPage() {
   const handleFirmToggle = (index: number) => {
     setExpandedIndex((prev) => (prev === index ? null : index));
     setAddCompanyFirmId(null);
-    setEditingFirmId(null);
     setEditingCompanyId(null);
+    setCompanyName("");
   };
 
-  const handleDeleteClick = (firmId: number) => {
-    setDeleteFirmId(firmId);
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (deleteFirmId === null) return;
-
-    try {
-      await supabase.from("companies").delete().eq("firm_id", deleteFirmId);
-      await supabase.from("firms").delete().eq("id", deleteFirmId);
-
-      toast.success("Firm deleted successfully");
-      setFirms((prev) => prev.filter((f) => f.id !== deleteFirmId));
-    } catch (err: any) {
-      toast.error(`Delete failed: ${err?.message || err}`);
-    } finally {
-      setDeleteDialogOpen(false);
-      setDeleteFirmId(null);
-    }
-  };
-
-  const handleAddFirm = async (e: React.FormEvent) => {
+  // Add / Update Firm
+  const handleFirmSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newFirmName.trim()) return;
+    if (!firmName.trim()) return;
+    const trimmed = firmName.trim();
 
-    const trimmed = newFirmName.trim();
-    const { data, error } = await supabase
-      .from("firms")
-      .insert([{ name: trimmed }])
-      .select("id, name");
+    if (editingFirmId) {
+      // Update firm
+      const { data, error } = await supabase
+        .from("firms")
+        .update({ name: trimmed })
+        .eq("id", editingFirmId)
+        .select("id, name");
 
-    if (error) {
-      toast.error(
-        error.code === "23505"
-          ? "Firm already exists"
-          : `Error: ${error.message}`
-      );
-      return;
-    }
+      if (error) return toast.error(`Error: ${error.message}`);
 
-    if (data && data[0]) {
-      setFirms((prev) => [
-        ...prev,
-        { id: data[0].id, name: data[0].name, companies: [] },
-      ]);
-      toast.success("Firm created successfully");
-      setNewFirmName("");
-    }
-  };
-
-  const handleAddCompanyClick = (firmId: number) => {
-    setAddCompanyFirmId(firmId);
-    setNewCompanyName("");
-    setEditingCompanyId(null);
-    setEditingCompanyName("");
-  };
-
-  const handleAddCompany = async () => {
-    if (addCompanyFirmId === null || !newCompanyName.trim()) return;
-
-    const trimmed = newCompanyName.trim();
-    const { data, error } = await supabase
-      .from("companies")
-      .insert([{ name: trimmed, firm_id: addCompanyFirmId }])
-      .select("id, name, firm_id");
-
-    if (error) {
-      toast.error(`Error adding company: ${error.message}`);
-      return;
-    }
-
-    if (data && data[0]) {
-      setFirms((prev) =>
-        prev.map((f) =>
-          f.id === addCompanyFirmId
-            ? { ...f, companies: [...f.companies, data[0]] }
-            : f
-        )
-      );
-      toast.success("Company added successfully");
-      setNewCompanyName("");
-      setAddCompanyFirmId(null);
-    }
-  };
-
-  const startEditFirm = (firmId: number, name: string) => {
-    setEditingFirmId(firmId);
-    setEditingFirmName(name);
-  };
-
-  const saveEditFirm = async () => {
-    if (editingFirmId === null || !editingFirmName.trim()) return;
-
-    const trimmed = editingFirmName.trim();
-    const { data, error } = await supabase
-      .from("firms")
-      .update({ name: trimmed })
-      .eq("id", editingFirmId)
-      .select("id, name");
-
-    if (error) {
-      toast.error(`Error updating firm: ${error.message}`);
-      return;
-    }
-
-    if (data && data[0]) {
       setFirms((prev) =>
         prev.map((f) =>
           f.id === editingFirmId ? { ...f, name: data[0].name } : f
@@ -205,31 +112,46 @@ export default function FirmsPage() {
       );
       toast.success("Firm updated");
       setEditingFirmId(null);
-      setEditingFirmName("");
+    } else {
+      // Add firm
+      const { data, error } = await supabase
+        .from("firms")
+        .insert([{ name: trimmed }])
+        .select("id, name");
+
+      if (error) {
+        toast.error(
+          error.code === "23505"
+            ? "Firm already exists"
+            : `Error: ${error.message}`
+        );
+        return;
+      }
+
+      setFirms((prev) => [
+        ...prev,
+        { id: data[0].id, name: data[0].name, companies: [] },
+      ]);
+      toast.success("Firm added");
     }
+    setFirmName("");
   };
 
-  const startEditCompany = (company: Company) => {
-    setEditingCompanyId(company.id);
-    setEditingCompanyName(company.name);
-  };
+  // Add / Update Company
+  const handleCompanySubmit = async () => {
+    if (!companyName.trim() || !addCompanyFirmId) return;
+    const trimmed = companyName.trim();
 
-  const saveEditCompany = async () => {
-    if (editingCompanyId === null || !editingCompanyName.trim()) return;
+    if (editingCompanyId) {
+      // Update company
+      const { data, error } = await supabase
+        .from("companies")
+        .update({ name: trimmed })
+        .eq("id", editingCompanyId)
+        .select("id, name, firm_id");
 
-    const trimmed = editingCompanyName.trim();
-    const { data, error } = await supabase
-      .from("companies")
-      .update({ name: trimmed })
-      .eq("id", editingCompanyId)
-      .select("id, name, firm_id");
+      if (error) return toast.error(`Error: ${error.message}`);
 
-    if (error) {
-      toast.error(`Error updating company: ${error.message}`);
-      return;
-    }
-
-    if (data && data[0]) {
       setFirms((prev) =>
         prev.map((f) =>
           f.id === data[0].firm_id
@@ -244,9 +166,45 @@ export default function FirmsPage() {
       );
       toast.success("Company updated");
       setEditingCompanyId(null);
-      setEditingCompanyName("");
+    } else {
+      // Add company
+      const { data, error } = await supabase
+        .from("companies")
+        .insert([{ name: trimmed, firm_id: addCompanyFirmId }])
+        .select("id, name, firm_id");
+
+      if (error) return toast.error(`Error: ${error.message}`);
+
+      setFirms((prev) =>
+        prev.map((f) =>
+          f.id === addCompanyFirmId
+            ? { ...f, companies: [...f.companies, data[0]] }
+            : f
+        )
+      );
+      toast.success("Company added");
     }
+    setCompanyName("");
+    setAddCompanyFirmId(null);
   };
+
+  const handleDeleteClick = (firmId: number) => {
+    setDeleteFirmId(firmId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteFirmId === null) return;
+
+    await supabase.from("companies").delete().eq("firm_id", deleteFirmId);
+    await supabase.from("firms").delete().eq("id", deleteFirmId);
+
+    setFirms((prev) => prev.filter((f) => f.id !== deleteFirmId));
+    toast.success("Firm deleted");
+    setDeleteDialogOpen(false);
+    setDeleteFirmId(null);
+  };
+
   const handleDeleteCompanyClick = (compId: number) => {
     setDeleteCompanyId(compId);
     setDeleteCompanyDialogOpen(true);
@@ -255,15 +213,7 @@ export default function FirmsPage() {
   const confirmDeleteCompany = async () => {
     if (deleteCompanyId === null) return;
 
-    const { error } = await supabase
-      .from("companies")
-      .delete()
-      .eq("id", deleteCompanyId);
-
-    if (error) {
-      toast.error(`Error deleting company: ${error.message}`);
-      return;
-    }
+    await supabase.from("companies").delete().eq("id", deleteCompanyId);
 
     setFirms((prev) =>
       prev.map((f) => ({
@@ -277,30 +227,11 @@ export default function FirmsPage() {
     setDeleteCompanyId(null);
   };
 
-  const handleDeleteCompany = async (compId: number) => {
-    const { error } = await supabase
-      .from("companies")
-      .delete()
-      .eq("id", compId);
-
-    if (error) {
-      toast.error(`Error deleting company: ${error.message}`);
-      return;
-    }
-
-    setFirms((prev) =>
-      prev.map((f) => ({
-        ...f,
-        companies: f.companies.filter((c) => c.id !== compId),
-      }))
-    );
-    toast.success("Company deleted");
-  };
-
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
 
+      {/* Search */}
       <div className="flex gap-2 my-4 mx-8">
         <Input
           placeholder="Search by Firm or Company Name"
@@ -308,10 +239,7 @@ export default function FirmsPage() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <Button
-          className="bg-[#6587DE] text-white hover:bg-blue-700"
-          onClick={() => setSearchTerm(searchTerm.trim())}
-        >
+        <Button className="bg-[#6587DE] text-white hover:bg-blue-700">
           Search
         </Button>
       </div>
@@ -323,25 +251,35 @@ export default function FirmsPage() {
               Firm Management
             </h2>
 
-            <div className="mb-4">
-              <form className="flex gap-2" onSubmit={handleAddFirm}>
-                <Input
-                  placeholder="Enter Firm Name here"
-                  className="flex-1 border-gray-300"
-                  value={newFirmName}
-                  onChange={(e) => setNewFirmName(e.target.value)}
-                />
+            {/* Firm add/update form */}
+            <form className="flex gap-2 mb-4" onSubmit={handleFirmSubmit}>
+              <Input
+                placeholder="Enter Firm Name"
+                value={firmName}
+                onChange={(e) => setFirmName(e.target.value)}
+              />
+              <Button
+                type="submit"
+                className="bg-[#6587DE] text-white hover:bg-blue-700"
+              >
+                {editingFirmId ? "Update" : "Add"}
+              </Button>
+              {editingFirmId && (
                 <Button
-                  type="submit"
-                  className="bg-[#6587DE] text-white hover:bg-blue-700"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingFirmId(null);
+                    setFirmName("");
+                  }}
                 >
-                  ADD
+                  Cancel
                 </Button>
-              </form>
-            </div>
+              )}
+            </form>
 
             <Separator className="mb-4" />
 
+            {/* Firm Table */}
             <div className="overflow-x-auto rounded-lg">
               <table className="min-w-full table-auto text-sm text-gray-700">
                 <thead className="bg-gray-100 font-semibold">
@@ -360,50 +298,19 @@ export default function FirmsPage() {
                       >
                         <td className="p-3">{index + 1}.</td>
                         <td className="p-3 font-medium cursor-pointer">
-                          {editingFirmId === firm.id ? (
-                            <div className="flex items-center gap-2">
-                              <Input
-                                value={editingFirmName}
-                                onChange={(e) =>
-                                  setEditingFirmName(e.target.value)
-                                }
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-64"
-                              />
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={saveEditFirm}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => setEditingFirmId(null)}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <>
-                              {firm.name}{" "}
-                              <span className="text-xs ml-2">
-                                {expandedIndex === index ? "▲" : "▼"}
-                              </span>
-                            </>
-                          )}
+                          {firm.name}{" "}
+                          <span className="text-xs ml-2">
+                            {expandedIndex === index ? "▲" : "▼"}
+                          </span>
                         </td>
                         <td className="p-3 text-right space-x-2">
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8 rounded-md"
                             onClick={(e) => {
                               e.stopPropagation();
-                              startEditFirm(firm.id, firm.name);
+                              setEditingFirmId(firm.id);
+                              setFirmName(firm.name);
                             }}
                           >
                             <Pencil className="h-4 w-4" />
@@ -411,7 +318,6 @@ export default function FirmsPage() {
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8 rounded-md"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteClick(firm.id);
@@ -431,45 +337,17 @@ export default function FirmsPage() {
                             >
                               <td></td>
                               <td className="p-3 pl-8 text-gray-600">
-                                {editingCompanyId === comp.id ? (
-                                  <div className="flex items-center gap-2">
-                                    <Input
-                                      value={editingCompanyName}
-                                      onChange={(e) =>
-                                        setEditingCompanyName(e.target.value)
-                                      }
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="w-64"
-                                    />
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={saveEditCompany}
-                                    >
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={() => setEditingCompanyId(null)}
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  comp.name
-                                )}
+                                {comp.name}
                               </td>
                               <td className="p-3 text-right space-x-2">
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  className="h-8 w-8 rounded-md"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    startEditCompany(comp);
+                                    setEditingCompanyId(comp.id);
+                                    setAddCompanyFirmId(firm.id);
+                                    setCompanyName(comp.name);
                                   }}
                                 >
                                   <Pencil className="h-4 w-4" />
@@ -477,7 +355,6 @@ export default function FirmsPage() {
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  className="h-8 w-8 rounded-md"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleDeleteCompanyClick(comp.id);
@@ -489,37 +366,46 @@ export default function FirmsPage() {
                             </tr>
                           ))}
 
+                          {/* Add/Edit Company */}
                           <tr>
                             <td></td>
                             <td colSpan={2} className="p-0">
                               {addCompanyFirmId === firm.id ? (
                                 <div className="bg-white border border-gray-200 rounded-lg p-4 mx-4 mt-2">
-                                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                                    Add New Company
-                                  </h3>
-                                  <div className="flex mb-4">
-                                    <Input
-                                      placeholder="Enter Name of the Company"
-                                      value={newCompanyName}
-                                      onChange={(e) =>
-                                        setNewCompanyName(e.target.value)
-                                      }
-                                      className="rounded-r-none"
-                                    />
+                                  <Input
+                                    placeholder="Enter Company Name"
+                                    value={companyName}
+                                    onChange={(e) =>
+                                      setCompanyName(e.target.value)
+                                    }
+                                  />
+                                  <div className="flex gap-2 mt-2">
+                                    <Button
+                                      className="bg-[#6587DE] text-white hover:bg-blue-700"
+                                      onClick={handleCompanySubmit}
+                                    >
+                                      {editingCompanyId
+                                        ? "Update Company"
+                                        : "Add Company"}
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => {
+                                        setAddCompanyFirmId(null);
+                                        setEditingCompanyId(null);
+                                        setCompanyName("");
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
                                   </div>
-                                  <Button
-                                    className="w-full bg-[#6587DE] text-white hover:bg-blue-700"
-                                    onClick={handleAddCompany}
-                                  >
-                                    Save Company
-                                  </Button>
                                 </div>
                               ) : (
                                 <button
                                   className="w-full py-2 bg-[#6587DE] text-white flex items-center justify-center gap-2 hover:bg-blue-700"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleAddCompanyClick(firm.id);
+                                    setAddCompanyFirmId(firm.id);
                                   }}
                                 >
                                   <Plus className="h-4 w-4" />
@@ -538,12 +424,12 @@ export default function FirmsPage() {
           </CardContent>
         </Card>
       </main>
+
       <DeleteCompanyDialog
         open={deleteCompanyDialogOpen}
         setOpen={setDeleteCompanyDialogOpen}
         onConfirmDelete={confirmDeleteCompany}
       />
-
       <DeleteFirmDialog
         open={deleteDialogOpen}
         setOpen={setDeleteDialogOpen}
