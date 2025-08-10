@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/utils/supabase/server";
 import { v2 as cloudinary } from "cloudinary";
+import { randomUUID } from "crypto";
 
-// Configure Cloudinary with env variables
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
   api_key: process.env.CLOUDINARY_API_KEY!,
@@ -10,101 +10,114 @@ cloudinary.config({
   secure: true,
 });
 
-// Upload file to Cloudinary from a File object
-async function uploadFileToCloudinary(file: File) {
+async function uploadToCloudinaryFromBuffer(file: File) {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
-
   return new Promise<string>((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { resource_type: "auto" }, // supports images/videos/etc.
-      (error, result) => {
-        if (error) return reject(error);
-        if (!result || !result.secure_url) return reject(new Error("Upload failed"));
-        resolve(result.secure_url);
-      }
-    );
-
-    uploadStream.end(buffer);
+    const stream = cloudinary.uploader.upload_stream({ resource_type: "auto" }, (err, result) => {
+      if (err) return reject(err);
+      if (!result?.secure_url) return reject(new Error("Upload failed"));
+      resolve(result.secure_url);
+    });
+    stream.end(buffer);
   });
+}
+
+function getField(formData: FormData, key: string, isBool = false) {
+  const value = formData.get(key);
+  if (value === null) return null;
+  if (isBool) return value.toString() === "true";
+  return value.toString();
 }
 
 export async function POST(req: Request) {
   try {
-    const supabase = await createSupabaseServerClient();
-
-    // Parse incoming multipart form-data
     const formData = await req.formData();
 
-    const firmId = formData.get("firmId")?.toString() || null;
-    const companyId = formData.get("companyId")?.toString() || null;
-    const name = formData.get("name")?.toString() || "";
-    const fatherName = formData.get("fatherName")?.toString() || "";
-    const address = formData.get("address")?.toString() || "";
-    const aadharNumber = formData.get("aadharNumber")?.toString() || "";
-    const phoneNumber = formData.get("phoneNumber")?.toString() || "";
-    const gender = formData.get("gender")?.toString() || "";
-    const bloodGroup = formData.get("bloodGroup")?.toString() || "";
-    const dob = formData.get("dob")?.toString() || null;
-    const esicNumber = formData.get("esicNumber")?.toString() || "";
-    const uanNumber = formData.get("uanNumber")?.toString() || "";
-    const doj = formData.get("doj")?.toString() || null;
-    const exitDate = formData.get("exitDate")?.toString() || null;
-    const accountNumber = formData.get("accountNumber")?.toString() || "";
-    const ifscCode = formData.get("ifscCode")?.toString() || "";
-    const isActive = formData.get("isActive")?.toString() === "true";
+    const fields = {
+      firm_id: getField(formData, "firmId"),
+      company_id: getField(formData, "companyId"),
+      name: getField(formData, "name") || "",
+      father_name: getField(formData, "fatherName") || "",
+      address: getField(formData, "address") || "",
+      aadhar_number: getField(formData, "aadharNumber") || "",
+      phone: getField(formData, "phoneNumber") || "",
+      gender: getField(formData, "gender") || "",
+      blood_group: getField(formData, "bloodGroup") || "",
+      dob: getField(formData, "dob"),
+      esic_number: getField(formData, "esicNumber") || "",
+      uan_number: getField(formData, "uanNumber") || "",
+      doj: getField(formData, "doj"),
+      exit_date: getField(formData, "exitDate"),
+      account_number: getField(formData, "accountNumber") || "",
+      ifsc_code: getField(formData, "ifscCode") || "",
+      is_active: getField(formData, "isActive", true),
+    };
 
-    // Extract files from formData
     const staffImage = formData.get("staffImage") as File | null;
     const aadharCard = formData.get("aadharCard") as File | null;
     const bankPassbook = formData.get("bankPassbook") as File | null;
 
-    // Upload files to Cloudinary
-    const uploadedMedia: Record<string, string | null> = {
-      staffImage: null,
-      aadharCard: null,
-      bankPassbook: null,
-    };
+    const supabase = await createSupabaseServerClient();
 
-    if (staffImage && staffImage.size > 0) {
-      uploadedMedia.staffImage = await uploadFileToCloudinary(staffImage);
-    }
-    if (aadharCard && aadharCard.size > 0) {
-      uploadedMedia.aadharCard = await uploadFileToCloudinary(aadharCard);
-    }
-    if (bankPassbook && bankPassbook.size > 0) {
-      uploadedMedia.bankPassbook = await uploadFileToCloudinary(bankPassbook);
+    // 1️⃣ Upload to Supabase Storage first
+    async function uploadToSupabase(file: File | null, bucket: string) {
+      if (!file || file.size === 0) return null;
+      const filePath = `${randomUUID()}-${file.name}`;
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file, { cacheControl: "3600", upsert: false });
+      if (error) throw error;
+      const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+      return publicUrlData.publicUrl;
     }
 
-    // Insert staff record in Supabase
-    const { data, error } = await supabase.from("staff").insert([
-      {
-        firm_id: firmId,
-        company_id: companyId,
-        name,
-        father_name: fatherName,
-        address,
-        aadhar_number: aadharNumber,
-        phone: phoneNumber,
-        gender,
-        blood_group: bloodGroup,
-        dob,
-        esic_number: esicNumber,
-        uan_number: uanNumber,
-        doj,
-        exit_date: exitDate,
-        account_number: accountNumber,
-        ifsc_code: ifscCode,
-        is_active: isActive,
-        staff_image_url: uploadedMedia.staffImage,
-        aadhar_card_url: uploadedMedia.aadharCard,
-        bank_passbook_url: uploadedMedia.bankPassbook,
-      },
+    const [staffImageUrl, aadharCardUrl, bankPassbookUrl] = await Promise.all([
+      uploadToSupabase(staffImage, "staff-images"),
+      uploadToSupabase(aadharCard, "staff-documents"),
+      uploadToSupabase(bankPassbook, "staff-documents"),
     ]);
 
-    if (error) throw error;
+    // 2️⃣ Insert record with Supabase Storage URLs
+    const { data: insertedData, error: insertError } = await supabase.from("staff").insert([
+      {
+        ...fields,
+        staff_image_url: staffImageUrl,
+        aadhar_card_url: aadharCardUrl,
+        bank_passbook_url: bankPassbookUrl,
+      },
+    ]).select("id");
 
-    return NextResponse.json({ success: true, data });
+    if (insertError) throw insertError;
+
+    const staffId = insertedData[0]?.id;
+
+    // 3️⃣ Background Cloudinary upload (non-blocking)
+    (async () => {
+      try {
+        const [cloudStaffUrl, cloudAadharUrl, cloudPassbookUrl] = await Promise.all([
+          staffImage?.size ? uploadToCloudinaryFromBuffer(staffImage) : null,
+          aadharCard?.size ? uploadToCloudinaryFromBuffer(aadharCard) : null,
+          bankPassbook?.size ? uploadToCloudinaryFromBuffer(bankPassbook) : null,
+        ]);
+
+        await supabase.from("staff").update({
+          staff_image_url: cloudStaffUrl || staffImageUrl,
+          aadhar_card_url: cloudAadharUrl || aadharCardUrl,
+          bank_passbook_url: cloudPassbookUrl || bankPassbookUrl,
+        }).eq("id", staffId);
+      } catch (bgErr) {
+        console.error("Background Cloudinary upload failed:", bgErr);
+      }
+    })();
+
+    // Respond immediately without waiting for Cloudinary
+    return NextResponse.json({
+      success: true,
+      message: "Staff added successfully. Files are being processed in background.",
+      data: insertedData,
+    });
+
   } catch (err: any) {
     console.error("Add staff error:", err);
     return NextResponse.json(
