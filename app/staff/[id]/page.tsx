@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import DeleteStaffDialog from "@/components/DeleteStaffDialog";
 import {
@@ -20,14 +19,11 @@ import {
   Clock,
   Edit,
   Trash2,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
-import {
-  deleteStaffAction,
-  getStaffByIdAction,
-} from "@/app/actions/staff.acton";
-
-// Import your server action
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Staff {
   id: string;
@@ -51,10 +47,6 @@ interface Staff {
   firm_id: string;
   company_id: string;
   is_active: boolean;
-}
-
-interface EmployeeProfilePageProps {
-  staffId: string;
 }
 
 export default function EmployeeProfilePage() {
@@ -111,6 +103,85 @@ export default function EmployeeProfilePage() {
     }
   };
 
+  // Generate PDF
+  const handleDownloadPDF = () => {
+    if (!staff) return;
+    const doc = new jsPDF();
+
+    // Title
+    doc.setFontSize(18);
+    doc.text("Employee Profile", 14, 20);
+    doc.setFontSize(12);
+    doc.text(`Name: ${staff.name}`, 14, 30);
+    doc.text(`Status: ${staff.is_active ? "Active" : "Inactive"}`, 14, 36);
+
+    // AutoTable for details
+    autoTable(doc, {
+      startY: 45,
+      head: [["Field", "Value"]],
+      body: [
+        ["Full Name", staff.name],
+        ["Father's Name", staff.father_name],
+        ["Aadhar Number", staff.aadhar_number],
+        ["Phone Number", staff.phone],
+        ["Date of Birth", staff.dob],
+        ["Gender", staff.gender],
+        ["Blood Group", staff.blood_group],
+        ["Account Number", staff.account_number],
+        ["IFSC Code", staff.ifsc_code],
+        ["Firm ID", staff.firm_id],
+        ["Company ID", staff.company_id],
+        ["UAN Number", staff.uan_number],
+        ["ESIC Number", staff.esic_number],
+        ["Date of Joining", staff.doj],
+        ["Exit Date", staff.exit_date || "N/A"],
+        ["Address", staff.address],
+      ],
+      theme: "grid",
+    });
+
+    // Add Images (if available)
+    let finalY = (doc as any).lastAutoTable.finalY + 10;
+    const loadImageAndAdd = (
+      url: string,
+      x: number,
+      y: number,
+      w: number,
+      h: number
+    ) => {
+      return new Promise<void>((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.src = url;
+        img.onload = () => {
+          doc.addImage(img, "JPEG", x, y, w, h);
+          resolve();
+        };
+        img.onerror = () => resolve();
+      });
+    };
+
+    (async () => {
+      if (staff.staff_image_url) {
+        await loadImageAndAdd(staff.staff_image_url, 14, finalY, 40, 40);
+        doc.text("Profile Image", 14, finalY + 45);
+        finalY += 55;
+      }
+      if (staff.aadhar_card_url) {
+        await loadImageAndAdd(staff.aadhar_card_url, 14, finalY, 60, 40);
+        doc.text("Aadhar Card", 14, finalY + 45);
+        finalY += 55;
+      }
+      if (staff.bank_passbook_url) {
+        await loadImageAndAdd(staff.bank_passbook_url, 14, finalY, 60, 40);
+        doc.text("Bank Passbook", 14, finalY + 45);
+      }
+
+      // Save PDF
+      doc.save(`${staff.name.replace(/\s+/g, "_")}_Profile.pdf`);
+    })();
+  };
+
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -124,7 +195,6 @@ export default function EmployeeProfilePage() {
         Staff not found.
       </div>
     );
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -364,6 +434,13 @@ export default function EmployeeProfilePage() {
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete Data
+            </Button>
+            <Button
+              className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white transition-all duration-300 rounded-md font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              onClick={handleDownloadPDF}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download PDF
             </Button>
           </div>
         </div>

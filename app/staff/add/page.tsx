@@ -546,7 +546,6 @@ export default function AddStaffPage() {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="col-span-2">
               <Label className="text-sm mb-2">Date of Birth*</Label>
               <Popover>
@@ -554,7 +553,7 @@ export default function AddStaffPage() {
                   <Button
                     variant="outline"
                     className={`w-full justify-start text-left text-sm ${
-                      errors.dob ? "border-red-500" : ""
+                      errors?.dob ? "border-red-500" : ""
                     }`}
                   >
                     {dob ? format(dob, "PPP") : <span>Select date</span>}
@@ -562,17 +561,48 @@ export default function AddStaffPage() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
+                  {/* Calendar */}
                   <Calendar
                     mode="single"
                     selected={dob}
                     onSelect={setDob}
                     initialFocus
-                    fromYear={1980}
-                    toYear={new Date().getFullYear()}
+                    fromYear={1950}
+                    toYear={new Date().getFullYear() - 4}
                   />
+
+                  {/* Year dropdown BELOW the calendar */}
+                  <div className="border-t bg-gray-50 p-2 flex justify-center">
+                    <select
+                      value={dob ? dob.getFullYear() : ""}
+                      onChange={(e) => {
+                        const year = parseInt(e.target.value, 10);
+                        if (!isNaN(year)) {
+                          if (dob) {
+                            setDob(
+                              new Date(year, dob.getMonth(), dob.getDate())
+                            );
+                          } else {
+                            setDob(new Date(year, 0, 1));
+                          }
+                        }
+                      }}
+                      className="border rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select year</option>
+                      {Array.from(
+                        { length: new Date().getFullYear() - 4 - 1950 + 1 },
+                        (_, i) => 1950 + i
+                      ).map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </PopoverContent>
               </Popover>
-              {errors.dob && (
+              {errors?.dob && (
                 <p className="text-red-500 text-xs mt-1">{errors.dob}</p>
               )}
             </div>
