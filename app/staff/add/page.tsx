@@ -27,6 +27,28 @@ import { createBrowserClient } from "@supabase/ssr";
 type Firm = { id: string; name: string };
 type Company = { id: string; name: string; firm_id?: string };
 
+// Validation types
+interface FormErrors {
+  name?: string;
+  fatherName?: string;
+  address?: string;
+  aadhar?: string;
+  phone?: string;
+  gender?: string;
+  bloodGroup?: string;
+  esic?: string;
+  uan?: string;
+  account?: string;
+  ifsc?: string;
+  firmId?: string;
+  companyId?: string;
+  staffImage?: string;
+  aadharCard?: string;
+  bankPassbook?: string;
+  dob?: string;
+  doj?: string;
+}
+
 export default function AddStaffPage() {
   const [dob, setDob] = useState<Date | undefined>();
   const [doj, setDoj] = useState<Date | undefined>();
@@ -34,6 +56,7 @@ export default function AddStaffPage() {
   const [isActive, setIsActive] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>({});
 
   const [form, setForm] = useState({
     name: "",
@@ -94,7 +117,6 @@ export default function AddStaffPage() {
   const aadharInputRef = useRef<HTMLInputElement | null>(null);
   const passbookInputRef = useRef<HTMLInputElement | null>(null);
 
-  // ✅ Proper Supabase browser client
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -140,8 +162,93 @@ export default function AddStaffPage() {
     setCompanies(filtered.length ? filtered : rawCompanies);
   }, [form.firmId, rawCompanies]);
 
-  const update = (key: string, value: string) =>
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    // Required fields
+    if (!form.name.trim()) newErrors.name = "Name is required";
+    if (!form.fatherName.trim())
+      newErrors.fatherName = "Father's name is required";
+    if (!form.address.trim()) newErrors.address = "Address is required";
+    if (!form.gender) newErrors.gender = "Gender is required";
+    if (!form.firmId) newErrors.firmId = "Firm is required";
+    if (!form.companyId) newErrors.companyId = "Company is required";
+    if (!dob) newErrors.dob = "Date of birth is required";
+    if (!doj) newErrors.doj = "Date of joining is required";
+
+    // Aadhar validation (12 digits)
+    if (form.aadhar && !/^\d{12}$/.test(form.aadhar)) {
+      newErrors.aadhar = "Aadhar must be 12 digits";
+    }
+
+    // Phone validation (10 digits)
+    if (form.phone && !/^\d{10}$/.test(form.phone)) {
+      newErrors.phone = "Phone must be 10 digits";
+    }
+
+    // ESIC validation (17 digits)
+    if (form.esic && !/^\d{17}$/.test(form.esic)) {
+      newErrors.esic = "ESIC must be 17 digits";
+    }
+
+    // UAN validation (12 digits)
+    if (form.uan && !/^\d{12}$/.test(form.uan)) {
+      newErrors.uan = "UAN must be 12 digits";
+    }
+
+    // Account number validation (min 9 digits)
+    if (form.account && !/^\d{9,}$/.test(form.account)) {
+      newErrors.account = "Account number must be at least 9 digits";
+    }
+
+    // IFSC validation (11 characters, format: ABCD0123456)
+    if (form.ifsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.ifsc)) {
+      newErrors.ifsc = "IFSC must be 11 characters (e.g. ABCD0123456)";
+    }
+
+    // File validations
+    if (!media.staffImage) newErrors.staffImage = "Staff image is required";
+    if (!media.aadharCard) newErrors.aadharCard = "Aadhar card is required";
+
+    // File size validations (max 5MB)
+    if (media.staffImage && media.staffImage.size > 5 * 1024 * 1024) {
+      newErrors.staffImage = "Image must be less than 5MB";
+    }
+    if (media.aadharCard && media.aadharCard.size > 5 * 1024 * 1024) {
+      newErrors.aadharCard = "Aadhar card must be less than 5MB";
+    }
+    if (media.bankPassbook && media.bankPassbook.size > 5 * 1024 * 1024) {
+      newErrors.bankPassbook = "Passbook must be less than 5MB";
+    }
+
+    // File type validations (images or PDF)
+    if (media.staffImage && !media.staffImage.type.startsWith("image/")) {
+      newErrors.staffImage = "Only images are allowed for staff photo";
+    }
+    if (
+      media.aadharCard &&
+      !media.aadharCard.type.match(/(image\/|application\/pdf)/)
+    ) {
+      newErrors.aadharCard = "Only images or PDFs are allowed";
+    }
+    if (
+      media.bankPassbook &&
+      !media.bankPassbook.type.match(/(image\/|application\/pdf)/)
+    ) {
+      newErrors.bankPassbook = "Only images or PDFs are allowed";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const update = (key: string, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    // Clear error when field is updated
+    if (errors[key as keyof FormErrors]) {
+      setErrors((prev) => ({ ...prev, [key]: undefined }));
+    }
+  };
 
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -158,6 +265,8 @@ export default function AddStaffPage() {
         ...p,
         [field]: { url, name: file.name, type: file.type, size: file.size },
       }));
+      // Clear error when file is selected
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
     } else {
       setMedia((m) => ({ ...m, [field]: null }));
       setPreviews((p) => ({ ...p, [field]: null }));
@@ -186,8 +295,16 @@ export default function AddStaffPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) {
-      alert("Please enter the staff name.");
+    if (!validateForm()) {
+      // Scroll to the first error
+      const firstError = Object.keys(errors)[0];
+      if (firstError) {
+        const element = document.getElementById(firstError);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (element.focus) element.focus();
+        }
+      }
       return;
     }
 
@@ -260,10 +377,8 @@ export default function AddStaffPage() {
         if (aadharInputRef.current) aadharInputRef.current.value = "";
         if (passbookInputRef.current) passbookInputRef.current.value = "";
         startTransition(() => {
-          // Optionally, you can redirect or update the UI here
-          window.location.href = "/staff"; // Redirect to staff list
+          window.location.href = "/staff";
         });
-        // optionally reset form here if needed
       } else {
         alert("Error: " + (json.message || "Unknown error"));
       }
@@ -302,7 +417,7 @@ export default function AddStaffPage() {
           <div className="grid grid-cols-2 gap-4 pt-2">
             <div>
               <Label htmlFor="name" className="mb-2">
-                Name
+                Name*
               </Label>
               <Input
                 id="name"
@@ -310,12 +425,16 @@ export default function AddStaffPage() {
                 value={form.name}
                 onChange={(e) => update("name", e.target.value)}
                 placeholder="Name"
+                className={errors.name ? "border-red-500" : ""}
               />
+              {errors.name && (
+                <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+              )}
             </div>
 
             <div>
               <Label htmlFor="fatherName" className="mb-2">
-                Father's Name
+                Father's Name*
               </Label>
               <Input
                 id="fatherName"
@@ -323,12 +442,16 @@ export default function AddStaffPage() {
                 value={form.fatherName}
                 onChange={(e) => update("fatherName", e.target.value)}
                 placeholder="Father's Name"
+                className={errors.fatherName ? "border-red-500" : ""}
               />
+              {errors.fatherName && (
+                <p className="text-red-500 text-xs mt-1">{errors.fatherName}</p>
+              )}
             </div>
 
             <div className="col-span-2">
               <Label htmlFor="address" className="mb-2">
-                Address
+                Address*
               </Label>
               <textarea
                 id="address"
@@ -336,8 +459,13 @@ export default function AddStaffPage() {
                 value={form.address}
                 onChange={(e) => update("address", e.target.value)}
                 placeholder="Address"
-                className="w-full border border-gray-300 rounded-md p-2 h-20 text-sm"
+                className={`w-full border ${
+                  errors.address ? "border-red-500" : "border-gray-300"
+                } rounded-md p-2 h-20 text-sm`}
               />
+              {errors.address && (
+                <p className="text-red-500 text-xs mt-1">{errors.address}</p>
+              )}
             </div>
 
             <div>
@@ -349,8 +477,13 @@ export default function AddStaffPage() {
                 name="aadhar"
                 value={form.aadhar}
                 onChange={(e) => update("aadhar", e.target.value)}
-                placeholder="Aadhar Number"
+                placeholder="Aadhar Number (12 digits)"
+                maxLength={12}
+                className={errors.aadhar ? "border-red-500" : ""}
               />
+              {errors.aadhar && (
+                <p className="text-red-500 text-xs mt-1">{errors.aadhar}</p>
+              )}
             </div>
 
             <div>
@@ -362,17 +495,24 @@ export default function AddStaffPage() {
                 name="phone"
                 value={form.phone}
                 onChange={(e) => update("phone", e.target.value)}
-                placeholder="Phone Number"
+                placeholder="Phone Number (10 digits)"
+                maxLength={10}
+                className={errors.phone ? "border-red-500" : ""}
               />
+              {errors.phone && (
+                <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+              )}
             </div>
 
             <div>
-              <Label className="mb-2">Gender</Label>
+              <Label className="mb-2">Gender*</Label>
               <Select
                 value={form.gender}
                 onValueChange={(v) => update("gender", v)}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  className={errors.gender ? "border-red-500" : ""}
+                >
                   <SelectValue placeholder="Gender" />
                 </SelectTrigger>
                 <SelectContent>
@@ -381,6 +521,9 @@ export default function AddStaffPage() {
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.gender && (
+                <p className="text-red-500 text-xs mt-1">{errors.gender}</p>
+              )}
             </div>
 
             <div>
@@ -405,12 +548,14 @@ export default function AddStaffPage() {
             </div>
 
             <div className="col-span-2">
-              <Label className="text-sm mb-2">Date of Birth</Label>
+              <Label className="text-sm mb-2">Date of Birth*</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left text-sm"
+                    className={`w-full justify-start text-left text-sm ${
+                      errors.dob ? "border-red-500" : ""
+                    }`}
                   >
                     {dob ? format(dob, "PPP") : <span>Select date</span>}
                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -422,9 +567,14 @@ export default function AddStaffPage() {
                     selected={dob}
                     onSelect={setDob}
                     initialFocus
+                    fromYear={1950}
+                    toYear={new Date().getFullYear() - 18}
                   />
                 </PopoverContent>
               </Popover>
+              {errors.dob && (
+                <p className="text-red-500 text-xs mt-1">{errors.dob}</p>
+              )}
             </div>
           </div>
         </div>
@@ -436,12 +586,14 @@ export default function AddStaffPage() {
           </h3>
           <div className="grid grid-cols-2 gap-4 pt-2">
             <div>
-              <Label className="mb-2">Firm Name</Label>
+              <Label className="mb-2">Firm Name*</Label>
               <Select
                 value={form.firmId}
                 onValueChange={(v) => update("firmId", v)}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  className={errors.firmId ? "border-red-500" : ""}
+                >
                   <SelectValue placeholder="Select Firm" />
                 </SelectTrigger>
                 <SelectContent>
@@ -452,15 +604,20 @@ export default function AddStaffPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {errors.firmId && (
+                <p className="text-red-500 text-xs mt-1">{errors.firmId}</p>
+              )}
             </div>
 
             <div>
-              <Label className="mb-2">Company Name</Label>
+              <Label className="mb-2">Company Name*</Label>
               <Select
                 value={form.companyId}
                 onValueChange={(v) => update("companyId", v)}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  className={errors.companyId ? "border-red-500" : ""}
+                >
                   <SelectValue placeholder="Select Company" />
                 </SelectTrigger>
                 <SelectContent>
@@ -471,6 +628,9 @@ export default function AddStaffPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {errors.companyId && (
+                <p className="text-red-500 text-xs mt-1">{errors.companyId}</p>
+              )}
             </div>
 
             <div>
@@ -482,8 +642,13 @@ export default function AddStaffPage() {
                 name="esic"
                 value={form.esic}
                 onChange={(e) => update("esic", e.target.value)}
-                placeholder="ESIC Number"
+                placeholder="ESIC Number (17 digits)"
+                maxLength={17}
+                className={errors.esic ? "border-red-500" : ""}
               />
+              {errors.esic && (
+                <p className="text-red-500 text-xs mt-1">{errors.esic}</p>
+              )}
             </div>
 
             <div>
@@ -495,17 +660,24 @@ export default function AddStaffPage() {
                 name="uan"
                 value={form.uan}
                 onChange={(e) => update("uan", e.target.value)}
-                placeholder="UAN Number"
+                placeholder="UAN Number (12 digits)"
+                maxLength={12}
+                className={errors.uan ? "border-red-500" : ""}
               />
+              {errors.uan && (
+                <p className="text-red-500 text-xs mt-1">{errors.uan}</p>
+              )}
             </div>
 
             <div>
-              <Label className="text-sm mb-2">Date of Joining</Label>
+              <Label className="text-sm mb-2">Date of Joining*</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left text-sm"
+                    className={`w-full justify-start text-left text-sm ${
+                      errors.doj ? "border-red-500" : ""
+                    }`}
                   >
                     {doj ? format(doj, "PPP") : <span>Select date</span>}
                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -517,9 +689,14 @@ export default function AddStaffPage() {
                     selected={doj}
                     onSelect={setDoj}
                     initialFocus
+                    fromYear={2000}
+                    toYear={new Date().getFullYear()}
                   />
                 </PopoverContent>
               </Popover>
+              {errors.doj && (
+                <p className="text-red-500 text-xs mt-1">{errors.doj}</p>
+              )}
             </div>
 
             <div>
@@ -544,6 +721,8 @@ export default function AddStaffPage() {
                     selected={exitDate}
                     onSelect={setExitDate}
                     initialFocus
+                    fromYear={2000}
+                    toYear={new Date().getFullYear()}
                   />
                 </PopoverContent>
               </Popover>
@@ -563,7 +742,11 @@ export default function AddStaffPage() {
                   value={form.account}
                   onChange={(e) => update("account", e.target.value)}
                   placeholder="Account Number"
+                  className={errors.account ? "border-red-500" : ""}
                 />
+                {errors.account && (
+                  <p className="text-red-500 text-xs mt-1">{errors.account}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="ifsc" className="m-2">
@@ -574,8 +757,12 @@ export default function AddStaffPage() {
                   name="ifsc"
                   value={form.ifsc}
                   onChange={(e) => update("ifsc", e.target.value)}
-                  placeholder="IFSC Code"
+                  placeholder="IFSC Code (e.g. ABCD0123456)"
+                  className={errors.ifsc ? "border-red-500" : ""}
                 />
+                {errors.ifsc && (
+                  <p className="text-red-500 text-xs mt-1">{errors.ifsc}</p>
+                )}
               </div>
             </div>
           </div>
@@ -590,8 +777,8 @@ export default function AddStaffPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            { label: "Staff Image", field: "staffImage", ref: staffInputRef },
-            { label: "Aadhar Card", field: "aadharCard", ref: aadharInputRef },
+            { label: "Staff Image*", field: "staffImage", ref: staffInputRef },
+            { label: "Aadhar Card*", field: "aadharCard", ref: aadharInputRef },
             {
               label: "Bank Passbook",
               field: "bankPassbook",
@@ -599,6 +786,7 @@ export default function AddStaffPage() {
             },
           ].map(({ label, field, ref }) => {
             const pv = previews[field as keyof typeof previews];
+            const error = errors[field as keyof typeof errors];
             return (
               <div
                 key={field}
@@ -610,6 +798,9 @@ export default function AddStaffPage() {
                   <div className="flex flex-col items-center">
                     <UploadCloud className="h-6 w-6 text-gray-400 mb-1" />
                     <span className="text-sm">Click to upload</span>
+                    {error && (
+                      <span className="text-xs text-red-500 mt-1">{error}</span>
+                    )}
                   </div>
                   <input
                     ref={ref as React.RefObject<HTMLInputElement>}
@@ -681,7 +872,7 @@ export default function AddStaffPage() {
           variant="outline"
           className="rounded-md"
           onClick={() => {
-            // reset (light)
+            // reset form
             setForm({
               name: "",
               fatherName: "",
@@ -701,10 +892,20 @@ export default function AddStaffPage() {
             setDoj(undefined);
             setExitDate(undefined);
             setIsActive(true);
-            // remove files
-            removeFile("staffImage");
-            removeFile("aadharCard");
-            removeFile("bankPassbook");
+            setMedia({
+              staffImage: null,
+              aadharCard: null,
+              bankPassbook: null,
+            });
+            setPreviews({
+              staffImage: null,
+              aadharCard: null,
+              bankPassbook: null,
+            });
+            setErrors({});
+            if (staffInputRef.current) staffInputRef.current.value = "";
+            if (aadharInputRef.current) aadharInputRef.current.value = "";
+            if (passbookInputRef.current) passbookInputRef.current.value = "";
           }}
         >
           Cancel
