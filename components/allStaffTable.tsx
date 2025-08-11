@@ -147,7 +147,7 @@ export default function AllStaffTable({ staffList }: Props) {
       </div>
 
       <div className="border border-gray-400 p-2 text-gray-700 font-light text-sm bg-gray-200">
-        Showing {staffList.length} out of 10
+        Showing {staffList.length} out of {staffList.length} staff members
       </div>
     </div>
   );
