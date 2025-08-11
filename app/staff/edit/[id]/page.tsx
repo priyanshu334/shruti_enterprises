@@ -455,7 +455,11 @@ export default function EditStaffPage() {
                 id="aadhar"
                 name="aadhar"
                 value={form.aadhar}
-                onChange={(e) => update("aadhar", e.target.value)}
+                onChange={(e) => {
+                  // Allow only digits
+                  const numericValue = e.target.value.replace(/\D/g, "");
+                  update("aadhar", numericValue);
+                }}
                 placeholder="Aadhar Number"
               />
             </div>
@@ -468,7 +472,10 @@ export default function EditStaffPage() {
                 id="phone"
                 name="phone"
                 value={form.phone}
-                onChange={(e) => update("phone", e.target.value)}
+                onChange={(e) => {
+                  const numericValue = e.target.value.replace(/\D/g, "");
+                  update("phone", numericValue);
+                }}
                 placeholder="Phone Number"
               />
             </div>
@@ -586,7 +593,10 @@ export default function EditStaffPage() {
                 id="esic"
                 name="esic"
                 value={form.esic}
-                onChange={(e) => update("esic", e.target.value)}
+                onChange={(e) => {
+                  const numericValue = e.target.value.replace(/\D/g, "");
+                  update("esic", numericValue);
+                }}
                 placeholder="ESIC Number"
               />
             </div>
@@ -598,7 +608,10 @@ export default function EditStaffPage() {
                 id="uan"
                 name="uan"
                 value={form.uan}
-                onChange={(e) => update("uan", e.target.value)}
+                onChange={(e) => {
+                  const numericValue = e.target.value.replace(/\D/g, "");
+                  update("uan", numericValue);
+                }}
                 placeholder="UAN Number"
               />
             </div>
@@ -664,7 +677,10 @@ export default function EditStaffPage() {
                   id="account"
                   name="account"
                   value={form.account}
-                  onChange={(e) => update("account", e.target.value)}
+                  onChange={(e) => {
+                    const numericValue = e.target.value.replace(/\D/g, "");
+                    update("account", numericValue);
+                  }}
                   placeholder="Account Number"
                 />
               </div>

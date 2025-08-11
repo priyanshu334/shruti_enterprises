@@ -171,7 +171,7 @@ export default function StaffPage() {
                 Add Staff
               </Button>
             </Link>
-            <Link href="/staff/add" className="w-full sm:w-auto">
+            <Link href="/staff/allStaff" className="w-full sm:w-auto">
               <Button className="bg-[#6587DE] hover:bg-blue-600 text-white flex items-center justify-center gap-2 w-full sm:w-auto">
                 <View className="h-4 w-4" />
                 All Staff Members

@@ -188,29 +188,30 @@ export default function AddStaffPage() {
     if (!dob) newErrors.dob = "Date of birth is required";
     if (!doj) newErrors.doj = "Date of joining is required";
 
-    // Aadhar validation (12 digits)
-    if (form.aadhar && !/^\d{12}$/.test(form.aadhar)) {
-      newErrors.aadhar = "Aadhar must be 12 digits";
+    // Aadhaar validation (exactly 12 digits, only numbers)
+    if (form.aadhar && !/^[0-9]{12}$/.test(form.aadhar)) {
+      newErrors.aadhar = "Aadhaar must be exactly 12 digits and only numbers";
     }
 
-    // Phone validation (10 digits)
-    if (form.phone && !/^\d{10}$/.test(form.phone)) {
-      newErrors.phone = "Phone must be 10 digits";
+    // Phone validation (exactly 10 digits, only numbers)
+    if (form.phone && !/^[0-9]{10}$/.test(form.phone)) {
+      newErrors.phone = "Phone must be exactly 10 digits and only numbers";
     }
 
-    // ESIC validation (17 digits)
-    if (form.esic && !/^\d{17}$/.test(form.esic)) {
-      newErrors.esic = "ESIC must be 17 digits";
+    // ESIC validation (exactly 17 digits, only numbers)
+    if (form.esic && !/^[0-9]{17}$/.test(form.esic)) {
+      newErrors.esic = "ESIC must be exactly 17 digits and only numbers";
     }
 
-    // UAN validation (12 digits)
-    if (form.uan && !/^\d{12}$/.test(form.uan)) {
-      newErrors.uan = "UAN must be 12 digits";
+    // UAN validation (exactly 12 digits, only numbers)
+    if (form.uan && !/^[0-9]{12}$/.test(form.uan)) {
+      newErrors.uan = "UAN must be exactly 12 digits and only numbers";
     }
 
-    // Account number validation (min 9 digits)
-    if (form.account && !/^\d{9,}$/.test(form.account)) {
-      newErrors.account = "Account number must be at least 9 digits";
+    // Account number validation (minimum 9 digits, only numbers)
+    if (form.account && !/^[0-9]{9,}$/.test(form.account)) {
+      newErrors.account =
+        "Account number must be at least 9 digits and only numbers";
     }
 
     // IFSC validation (11 characters, format: ABCD0123456)
@@ -220,17 +221,17 @@ export default function AddStaffPage() {
 
     // File validations
     if (!media.staffImage) newErrors.staffImage = "Staff image is required";
-    if (!media.aadharCard) newErrors.aadharCard = "Aadhar card is required";
+    if (!media.aadharCard) newErrors.aadharCard = "Aadhaar card is required";
 
     // File size validations (max 5MB)
     if (media.staffImage && media.staffImage.size > 5 * 1024 * 1024) {
       newErrors.staffImage = "Image must be less than 5MB";
     }
     if (media.aadharCard && media.aadharCard.size > 5 * 1024 * 1024) {
-      newErrors.aadharCard = "Aadhar card must be less than 5MB";
+      newErrors.aadharCard = "Aadhaar card must be less than 5MB";
     }
     if (media.aadharBackside && media.aadharBackside.size > 5 * 1024 * 1024) {
-      newErrors.aadharBackside = "Aadhar card backside must be less than 5MB";
+      newErrors.aadharBackside = "Aadhaar card backside must be less than 5MB";
     }
     if (media.bankPassbook && media.bankPassbook.size > 5 * 1024 * 1024) {
       newErrors.bankPassbook = "Passbook must be less than 5MB";
@@ -507,7 +508,10 @@ export default function AddStaffPage() {
                 id="aadhar"
                 name="aadhar"
                 value={form.aadhar}
-                onChange={(e) => update("aadhar", e.target.value)}
+                onChange={(e) => {
+                  const numericValue = e.target.value.replace(/\D/g, "");
+                  update("aadhar", numericValue);
+                }}
                 placeholder="Aadhar Number (12 digits)"
                 maxLength={12}
                 className={errors.aadhar ? "border-red-500" : ""}
@@ -525,7 +529,10 @@ export default function AddStaffPage() {
                 id="phone"
                 name="phone"
                 value={form.phone}
-                onChange={(e) => update("phone", e.target.value)}
+                onChange={(e) => {
+                  const numericValue = e.target.value.replace(/\D/g, "");
+                  update("phone", numericValue);
+                }}
                 placeholder="Phone Number (10 digits)"
                 maxLength={10}
                 className={errors.phone ? "border-red-500" : ""}
@@ -702,7 +709,11 @@ export default function AddStaffPage() {
                 id="esic"
                 name="esic"
                 value={form.esic}
-                onChange={(e) => update("esic", e.target.value)}
+                onChange={(e) => {
+                  // Allow only digits
+                  const numericValue = e.target.value.replace(/\D/g, "");
+                  update("esic", numericValue);
+                }}
                 placeholder="ESIC Number (17 digits)"
                 maxLength={17}
                 className={errors.esic ? "border-red-500" : ""}
@@ -720,7 +731,11 @@ export default function AddStaffPage() {
                 id="uan"
                 name="uan"
                 value={form.uan}
-                onChange={(e) => update("uan", e.target.value)}
+                onChange={(e) => {
+                  // Allow only digits
+                  const numericValue = e.target.value.replace(/\D/g, "");
+                  update("uan", numericValue);
+                }}
                 placeholder="UAN Number (12 digits)"
                 maxLength={12}
                 className={errors.uan ? "border-red-500" : ""}
@@ -801,7 +816,11 @@ export default function AddStaffPage() {
                   id="account"
                   name="account"
                   value={form.account}
-                  onChange={(e) => update("account", e.target.value)}
+                  onChange={(e) => {
+                    // Keep only digits
+                    const numericValue = e.target.value.replace(/\D/g, "");
+                    update("account", numericValue);
+                  }}
                   placeholder="Account Number"
                   className={errors.account ? "border-red-500" : ""}
                 />
@@ -817,7 +836,9 @@ export default function AddStaffPage() {
                   id="ifsc"
                   name="ifsc"
                   value={form.ifsc}
-                  onChange={(e) => update("ifsc", e.target.value)}
+                  onChange={(e) => {
+                    update("ifsc", e.target.value);
+                  }}
                   placeholder="IFSC Code (e.g. ABCD0123456)"
                   className={errors.ifsc ? "border-red-500" : ""}
                 />

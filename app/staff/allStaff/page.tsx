@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import AllStaffTable from "@/components/allStaffTable";
 
 type Firm = {
   id: string;
@@ -81,10 +82,7 @@ export default function StaffPage() {
 
       if (json.success && Array.isArray(json.data)) {
         // ✅ Filter for active staff only
-        const activeStaff = json.data.filter(
-          (staff: Staff) => staff.is_active === true
-        );
-        setStaffs(activeStaff);
+        setStaffs(json.data);
       } else {
         setStaffs([]);
         console.error(json.message || "Failed to fetch staff");
@@ -171,7 +169,7 @@ export default function StaffPage() {
                 Add Staff
               </Button>
             </Link>
-            <Link href="/staff/add" className="w-full sm:w-auto">
+            <Link href="/staff/allStaff" className="w-full sm:w-auto">
               <Button className="bg-[#6587DE] hover:bg-blue-600 text-white flex items-center justify-center gap-2 w-full sm:w-auto">
                 <View className="h-4 w-4" />
                 All Staff Members
@@ -181,7 +179,7 @@ export default function StaffPage() {
         </div>
 
         {/* Staff Table */}
-        <StaffTable staffList={paginatedStaffs} />
+        <AllStaffTable staffList={paginatedStaffs} />
 
         {/* Pagination */}
         <div className="flex justify-center items-center mt-8 gap-2">

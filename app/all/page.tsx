@@ -7,8 +7,8 @@ import { Plus, Menu, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import FirmSidebar from "@/components/Sidebar";
-import StaffTable from "@/components/StaffTable";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import AllStaffTable from "@/components/allStaffTable";
 
 type Firm = {
   id: string;
@@ -29,8 +29,8 @@ type Staff = {
   company_id: string;
   phone: string;
   staff_image_url: string;
-  aadhar_number?: string; // ✅ matches backend spelling
-  is_active?: boolean; // ✅ to filter active staff
+  aadhar_number?: string;
+  is_active?: boolean;
   firm?: string;
   company?: string;
 };
@@ -54,7 +54,6 @@ export default function StaffPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
 
-  // Fetch firms and companies
   useEffect(() => {
     async function fetchFirmsCompanies() {
       try {
@@ -78,7 +77,6 @@ export default function StaffPage() {
     fetchFirmsCompanies();
   }, [supabase]);
 
-  // Fetch staff
   useEffect(() => {
     async function fetchStaff() {
       setLoading(true);
@@ -87,8 +85,6 @@ export default function StaffPage() {
         if (!res.ok) throw new Error("Failed to fetch staff");
 
         const json = await res.json();
-        console.log("Fetched staff:", json);
-
         if (json.success) {
           setStaffList(json.data);
         } else {
@@ -103,7 +99,6 @@ export default function StaffPage() {
     fetchStaff();
   }, []);
 
-  // Merge firm & company names into staff objects
   const staffListWithNames = staffList.map((staff) => {
     const firm = firms.find((f) => f.id === staff.firm_id);
     const company = companies.find((c) => c.id === staff.company_id);
@@ -115,31 +110,23 @@ export default function StaffPage() {
     };
   });
 
-  // Filtered & Active staff only
   const filteredStaffWithNames = staffListWithNames.filter((staff) => {
     const term = searchTerm.toLowerCase().trim();
-
     const matchesSearch =
       (staff.name || "").toLowerCase().includes(term) ||
       (staff.aadhar_number || "").toLowerCase().includes(term);
-
     const matchesCompany = selectedCompany
       ? staff.company === selectedCompany
       : true;
-
-    const isActive = staff.is_active !== false; // ✅ Only show active staff
-
-    return matchesSearch && matchesCompany && isActive;
+    return matchesSearch && matchesCompany;
   });
 
-  // Pagination
   const totalPages = Math.ceil(filteredStaffWithNames.length / itemsPerPage);
   const paginatedStaff = filteredStaffWithNames.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  // Search handlers
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchInput(value);
@@ -155,7 +142,6 @@ export default function StaffPage() {
   return (
     <div className="min-h-screen flex flex-col font-sans">
       <Navbar />
-
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Mobile Menu */}
         <div className="md:hidden flex justify-between items-center px-4 py-3 bg-white border-b shadow-sm">
@@ -189,7 +175,6 @@ export default function StaffPage() {
           }))}
         />
 
-        {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
           <div className="p-6">
             {/* Header */}
@@ -226,12 +211,6 @@ export default function StaffPage() {
                     Add Staff
                   </Button>
                 </Link>
-                <Link href="/all">
-                  <Button className="bg-[#6587DE] text-white font-semibold px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 flex items-center gap-2">
-                    <Plus className="w-4 h-4" />
-                    All Staff Members
-                  </Button>
-                </Link>
               </div>
             </div>
 
@@ -239,7 +218,7 @@ export default function StaffPage() {
             {loading ? (
               <div>Loading staff...</div>
             ) : (
-              <StaffTable staffList={paginatedStaff} />
+              <AllStaffTable staffList={paginatedStaff} />
             )}
 
             {/* Pagination */}
