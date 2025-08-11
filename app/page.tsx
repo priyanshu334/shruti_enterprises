@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Menu, X } from "lucide-react";
+import { Plus, Menu, X, View } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import FirmSidebar from "@/components/Sidebar";
@@ -228,7 +228,7 @@ export default function StaffPage() {
                 </Link>
                 <Link href="/all">
                   <Button className="bg-[#6587DE] text-white font-semibold px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 flex items-center gap-2">
-                    <Plus className="w-4 h-4" />
+                    <View className="w-4 h-4" />
                     All Staff Members
                   </Button>
                 </Link>
