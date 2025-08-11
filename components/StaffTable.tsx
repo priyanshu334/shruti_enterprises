@@ -11,6 +11,7 @@ type Staff = {
   firm: string;
   company: string;
   phone: string;
+  aadhar_number?: string;
   staff_image_url: string;
 };
 
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export default function StaffTable({ staffList }: Props) {
+  console.log("Rendering StaffTable with staffList:", staffList);
   return (
     <div className="bg-white overflow-hidden">
       <div className="overflow-x-auto">
@@ -70,7 +72,7 @@ export default function StaffTable({ staffList }: Props) {
                         {staff.name}
                       </p>
                       <p className="text-xs text-gray-500 font-mono">
-                        ID: {staff.id}
+                        ID: {staff.aadhar_number || "N/A"}
                       </p>
                     </div>
                   </div>

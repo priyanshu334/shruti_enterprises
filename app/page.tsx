@@ -29,7 +29,8 @@ type Staff = {
   company_id: string;
   phone: string;
   staff_image_url: string;
-  aadhaar?: string;
+  aadhar_number?: string; // ✅ matches backend spelling
+  is_active?: boolean; // ✅ to filter active staff
   firm?: string;
   company?: string;
 };
@@ -53,6 +54,7 @@ export default function StaffPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
 
+  // Fetch firms and companies
   useEffect(() => {
     async function fetchFirmsCompanies() {
       try {
@@ -76,6 +78,7 @@ export default function StaffPage() {
     fetchFirmsCompanies();
   }, [supabase]);
 
+  // Fetch staff
   useEffect(() => {
     async function fetchStaff() {
       setLoading(true);
@@ -84,6 +87,8 @@ export default function StaffPage() {
         if (!res.ok) throw new Error("Failed to fetch staff");
 
         const json = await res.json();
+        console.log("Fetched staff:", json);
+
         if (json.success) {
           setStaffList(json.data);
         } else {
@@ -98,6 +103,7 @@ export default function StaffPage() {
     fetchStaff();
   }, []);
 
+  // Merge firm & company names into staff objects
   const staffListWithNames = staffList.map((staff) => {
     const firm = firms.find((f) => f.id === staff.firm_id);
     const company = companies.find((c) => c.id === staff.company_id);
@@ -109,30 +115,36 @@ export default function StaffPage() {
     };
   });
 
+  // Filtered & Active staff only
   const filteredStaffWithNames = staffListWithNames.filter((staff) => {
     const term = searchTerm.toLowerCase().trim();
+
     const matchesSearch =
-      staff.name?.toLowerCase().trim().includes(term) ||
-      staff.aadhaar?.toLowerCase().trim().includes(term);
+      (staff.name || "").toLowerCase().includes(term) ||
+      (staff.aadhar_number || "").toLowerCase().includes(term);
 
     const matchesCompany = selectedCompany
       ? staff.company === selectedCompany
       : true;
 
-    return matchesSearch && matchesCompany;
+    const isActive = staff.is_active !== false; // ✅ Only show active staff
+
+    return matchesSearch && matchesCompany && isActive;
   });
 
-  // Pagination calculations
+  // Pagination
   const totalPages = Math.ceil(filteredStaffWithNames.length / itemsPerPage);
   const paginatedStaff = filteredStaffWithNames.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  // Search handlers
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchInput(value);
-    setSearchTerm(value); // instantly update searchTerm for live search
-    setCurrentPage(1); // reset to first page for live search
+    setSearchTerm(value);
+    setCurrentPage(1);
   };
 
   const handleSearch = () => {
@@ -196,9 +208,9 @@ export default function StaffPage() {
                 <Input
                   placeholder="Search by name or Aadhaar..."
                   value={searchInput}
-                  onChange={handleSearchInputChange} // now uses live search
+                  onChange={handleSearchInputChange}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSearch(); // still supports Enter search
+                    if (e.key === "Enter") handleSearch();
                   }}
                   className="w-full sm:w-72 border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white"
                 />
