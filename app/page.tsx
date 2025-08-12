@@ -9,6 +9,13 @@ import Link from "next/link";
 import FirmSidebar from "@/components/Sidebar";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import AllStaffTable from "@/components/allStaffTable";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Firm = {
   id: string;
@@ -44,6 +51,9 @@ export default function StaffPage() {
 
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
 
   const [firms, setFirms] = useState<Firm[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -112,13 +122,23 @@ export default function StaffPage() {
 
   const filteredStaffWithNames = staffListWithNames.filter((staff) => {
     const term = searchTerm.toLowerCase().trim();
+
     const matchesSearch =
       (staff.name || "").toLowerCase().includes(term) ||
       (staff.aadhar_number || "").toLowerCase().includes(term);
+
     const matchesCompany = selectedCompany
       ? staff.company === selectedCompany
       : true;
-    return matchesSearch && matchesCompany;
+
+    const matchesStatus =
+      statusFilter === "all"
+        ? true
+        : statusFilter === "active"
+        ? staff.is_active === true
+        : staff.is_active === false;
+
+    return matchesSearch && matchesCompany && matchesStatus;
   });
 
   const totalPages = Math.ceil(filteredStaffWithNames.length / itemsPerPage);
@@ -188,7 +208,7 @@ export default function StaffPage() {
                 </p>
               </div>
 
-              {/* Search + Add */}
+              {/* Search + Filter + Add */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
                 <Input
                   placeholder="Search by name or Aadhaar..."
@@ -197,14 +217,33 @@ export default function StaffPage() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSearch();
                   }}
-                  className="w-full sm:w-72 border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white"
+                  className="w-full sm:w-60 border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white"
                 />
+
+                {/* Status Filter */}
+                <Select
+                  value={statusFilter}
+                  onValueChange={(val) =>
+                    setStatusFilter(val as "all" | "active" | "inactive")
+                  }
+                >
+                  <SelectTrigger className="w-40 border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white">
+                    <SelectValue placeholder="Filter Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 <Button
                   onClick={handleSearch}
                   className="bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
                 >
                   Search
                 </Button>
+
                 <Link href="/staff/add">
                   <Button className="bg-[#6587DE] text-white font-semibold px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 flex items-center gap-2">
                     <Plus className="w-4 h-4" />

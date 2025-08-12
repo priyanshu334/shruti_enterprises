@@ -6,9 +6,15 @@ import { Plus, Search, View } from "lucide-react";
 import Link from "next/link";
 
 import Navbar from "@/components/Navbar";
-import StaffTable from "@/components/StaffTable";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import AllStaffTable from "@/components/allStaffTable";
@@ -31,8 +37,8 @@ type Staff = {
   company_id: string;
   phone: string;
   staff_image_url: string;
-  aadhar_number?: string; // ✅ correct backend key
-  is_active?: boolean; // ✅ new flag from backend
+  aadhar_number?: string;
+  is_active?: boolean;
   firm?: string;
   company?: string;
 };
@@ -46,6 +52,9 @@ export default function StaffPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,14 +83,13 @@ export default function StaffPage() {
     fetchFirmsAndCompanies();
   }, [supabase]);
 
-  // Fetch only active staff
-  async function fetchActiveStaff() {
+  // Fetch staff
+  async function fetchStaff() {
     try {
       const res = await fetch("/api/staff");
       const json = await res.json();
 
       if (json.success && Array.isArray(json.data)) {
-        // ✅ Filter for active staff only
         setStaffs(json.data);
       } else {
         setStaffs([]);
@@ -94,7 +102,7 @@ export default function StaffPage() {
   }
 
   useEffect(() => {
-    fetchActiveStaff();
+    fetchStaff();
   }, []);
 
   // Merge firm/company names into staff data
@@ -108,25 +116,23 @@ export default function StaffPage() {
     };
   });
 
-  // Search logic
-  const handleSearch = () => {
-    setSearchTerm(searchInput);
-    setCurrentPage(1);
-  };
-
-  // Live search when typing
-  useEffect(() => {
-    setSearchTerm(searchInput);
-    setCurrentPage(1);
-  }, [searchInput]);
-
+  // Search + Status filter
   const filteredStaffs = staffWithNames.filter((staff) => {
     const term = searchTerm.toLowerCase().trim();
-    if (!term) return true;
-    return (
+
+    const matchesSearch =
+      !term ||
       (staff.name || "").toLowerCase().includes(term) ||
-      (staff.aadhar_number || "").toLowerCase().includes(term)
-    );
+      (staff.aadhar_number || "").toLowerCase().includes(term);
+
+    const matchesStatus =
+      statusFilter === "all"
+        ? true
+        : statusFilter === "active"
+        ? staff.is_active === true
+        : staff.is_active === false;
+
+    return matchesSearch && matchesStatus;
   });
 
   // Pagination
@@ -136,15 +142,26 @@ export default function StaffPage() {
     currentPage * itemsPerPage
   );
 
+  // Search handlers
+  const handleSearch = () => {
+    setSearchTerm(searchInput);
+    setCurrentPage(1);
+  };
+
+  useEffect(() => {
+    setSearchTerm(searchInput);
+    setCurrentPage(1);
+  }, [searchInput]);
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
 
       <div className="px-4 sm:px-6 py-6">
-        {/* Search & Add */}
+        {/* Search + Filter + Add */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <div className="flex w-full sm:max-w-sm gap-2">
-            <div className="relative flex-grow">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <div className="relative flex-grow sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
               <Input
                 type="text"
@@ -155,6 +172,7 @@ export default function StaffPage() {
                 className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
               />
             </div>
+
             <Button
               onClick={handleSearch}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4"
@@ -162,7 +180,25 @@ export default function StaffPage() {
               Search
             </Button>
           </div>
+
           <div className="flex gap-2">
+            {/* Status Filter */}
+            <Select
+              value={statusFilter}
+              onValueChange={(val) =>
+                setStatusFilter(val as "all" | "active" | "inactive")
+              }
+            >
+              <SelectTrigger className="w-full sm:w-40 border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white">
+                <SelectValue placeholder="Filter Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Link href="/staff/add" className="w-full sm:w-auto">
               <Button className="bg-[#6587DE] hover:bg-blue-600 text-white flex items-center justify-center gap-2 w-full sm:w-auto">
                 <Plus className="h-4 w-4" />

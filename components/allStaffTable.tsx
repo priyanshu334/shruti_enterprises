@@ -13,7 +13,7 @@ type Staff = {
   phone: string;
   aadhar_number?: string;
   staff_image_url: string;
-  is_active?: boolean;
+  is_active?: boolean; // ✅ added to match backend
 };
 
 interface Props {
@@ -40,13 +40,16 @@ export default function AllStaffTable({ staffList }: Props) {
               <th className="px-6 py-4 font-bold border-r border-gray-200">
                 Phone Number
               </th>
+              <th className="px-6 py-4 font-bold border-r border-gray-200">
+                Status
+              </th>
               <th className="px-6 py-4 font-bold text-center">Actions</th>
             </tr>
           </thead>
 
           <tbody>
             <tr>
-              <td colSpan={5} className="h-7"></td>
+              <td colSpan={6} className="h-7"></td>
             </tr>
           </tbody>
 
@@ -54,11 +57,7 @@ export default function AllStaffTable({ staffList }: Props) {
             {staffList.map((staff, idx) => (
               <tr
                 key={staff.id}
-                className={`transition-colors duration-200 group ${
-                  staff.is_active
-                    ? "bg-white hover:bg-blue-50"
-                    : "bg-gray-100 hover:bg-blue-100"
-                }`}
+                className="hover:bg-blue-50 transition-colors duration-200 group"
               >
                 <td className="px-6 py-5 border-r border-gray-200">
                   <div className="flex items-center gap-4">
@@ -70,17 +69,11 @@ export default function AllStaffTable({ staffList }: Props) {
                     <img
                       src={staff.staff_image_url || "/default-avatar.png"}
                       alt={staff.name}
-                      className="w-38 h-38 rounded-md object-cover"
+                      className="w-32 h-32 "
                     />
                     <div>
                       <p className="font-semibold text-gray-900">
                         {staff.name}
-                        {!staff.is_active && (
-                          <span className="text-red-500 font-normal">
-                            {" "}
-                            - Inactive
-                          </span>
-                        )}
                       </p>
                       <p className="text-xs text-gray-500 font-mono">
                         ID: {staff.aadhar_number || "N/A"}
@@ -108,6 +101,19 @@ export default function AllStaffTable({ staffList }: Props) {
                     </div>
                     <div className="text-gray-500 text-xs">Primary</div>
                   </div>
+                </td>
+
+                {/* ✅ New Status Column */}
+                <td className="px-6 py-5 border-r border-gray-200">
+                  {staff.is_active ? (
+                    <span className="text-green-600 font-semibold flex items-center gap-1">
+                      🟢 Active
+                    </span>
+                  ) : (
+                    <span className="text-red-600 font-semibold flex items-center gap-1">
+                      🔴 Inactive
+                    </span>
+                  )}
                 </td>
 
                 <td className="px-6 py-5">
