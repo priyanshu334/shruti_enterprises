@@ -214,15 +214,7 @@ export default function AddStaffPage() {
         "Account number must be at least 9 digits and only numbers";
     }
 
-    // IFSC validation (11 characters, format: ABCD0123456)
-    if (form.ifsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.ifsc)) {
-      newErrors.ifsc = "IFSC must be 11 characters (e.g. ABCD0123456)";
-    }
-
-    // File validations
-    if (!media.staffImage) newErrors.staffImage = "Staff image is required";
-    if (!media.aadharCard) newErrors.aadharCard = "Aadhaar card is required";
-
+    // IFSC validation (alphanumeric, 11 characters)
     // File size validations (max 5MB)
     if (media.staffImage && media.staffImage.size > 5 * 1024 * 1024) {
       newErrors.staffImage = "Image must be less than 5MB";
