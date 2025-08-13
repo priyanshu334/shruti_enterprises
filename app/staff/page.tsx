@@ -41,6 +41,7 @@ type Staff = {
   is_active?: boolean;
   firm?: string;
   company?: string;
+  serialNumber?: number; // Added for serial number
 };
 
 export default function StaffPage() {
@@ -135,12 +136,14 @@ export default function StaffPage() {
     return matchesSearch && matchesStatus;
   });
 
-  // Pagination
+  // Pagination with Serial Number
   const totalPages = Math.ceil(filteredStaffs.length / itemsPerPage);
-  const paginatedStaffs = filteredStaffs.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedStaffs = filteredStaffs
+    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    .map((staff, index) => ({
+      ...staff,
+      serialNumber: (currentPage - 1) * itemsPerPage + index + 1,
+    }));
 
   // Search handlers
   const handleSearch = () => {
@@ -190,8 +193,7 @@ export default function StaffPage() {
               }
             >
               <SelectTrigger className="w-full sm:w-40 border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white">
-                <SelectValue placeholder="Status" />{" "}
-                {/* Changed from "Filter Status" */}
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
