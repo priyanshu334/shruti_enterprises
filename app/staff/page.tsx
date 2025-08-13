@@ -58,7 +58,7 @@ export default function StaffPage() {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 4;
+  const itemsPerPage = 10;
 
   // Fetch firms & companies
   useEffect(() => {
@@ -190,7 +190,8 @@ export default function StaffPage() {
               }
             >
               <SelectTrigger className="w-full sm:w-40 border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white">
-                <SelectValue placeholder="Filter Status" />
+                <SelectValue placeholder="Status" />{" "}
+                {/* Changed from "Filter Status" */}
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>

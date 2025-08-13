@@ -14,6 +14,7 @@ type Staff = {
   aadhar_number?: string;
   staff_image_url: string;
   is_active?: boolean; // ✅ added to match backend
+  serialNumber?: number; // Added for serial number display
 };
 
 interface Props {
@@ -63,7 +64,7 @@ export default function AllStaffTable({ staffList }: Props) {
                   <div className="flex items-center gap-4">
                     <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                       <span className="font-bold text-blue-600 text-sm">
-                        {idx + 1}
+                        {staff.serialNumber}
                       </span>
                     </div>
                     <img

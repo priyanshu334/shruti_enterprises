@@ -40,6 +40,7 @@ type Staff = {
   is_active?: boolean;
   firm?: string;
   company?: string;
+  serialNumber?: number; // Added
 };
 
 export default function StaffPage() {
@@ -62,7 +63,7 @@ export default function StaffPage() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 4;
+  const itemsPerPage = 10;
 
   useEffect(() => {
     async function fetchFirmsCompanies() {
@@ -142,10 +143,12 @@ export default function StaffPage() {
   });
 
   const totalPages = Math.ceil(filteredStaffWithNames.length / itemsPerPage);
-  const paginatedStaff = filteredStaffWithNames.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedStaff = filteredStaffWithNames
+    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    .map((staff, index) => ({
+      ...staff,
+      serialNumber: (currentPage - 1) * itemsPerPage + index + 1,
+    }));
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -227,8 +230,8 @@ export default function StaffPage() {
                     setStatusFilter(val as "all" | "active" | "inactive")
                   }
                 >
-                  <SelectTrigger className="w-40 border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white">
-                    <SelectValue placeholder="Filter Status" />
+                  <SelectTrigger className="w-full sm:w-40 border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white">
+                    <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
