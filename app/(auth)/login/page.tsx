@@ -1,15 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createSupabaseServerClient } from "@/utils/supabase/server";
 import { loginAction } from "@/app/actions/auth.actions";
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
 
@@ -17,10 +13,10 @@ export default function AdminLoginPage() {
     const { errorMessage } = await loginAction(formData);
 
     if (errorMessage) {
-      console.log("login error", errorMessage);
+      setError(errorMessage);
+      return;
     }
 
-    console.log("login success");
     router.push("/firm");
   }
 
@@ -34,6 +30,7 @@ export default function AdminLoginPage() {
           Sign in with your admin credentials
         </p>
 
+        {/* Form submits directly to the server action */}
         <form action={handleLogin} className="space-y-4">
           <div className="space-y-1">
             <label className="block text-slate-600 font-medium">Email</label>
@@ -41,8 +38,6 @@ export default function AdminLoginPage() {
               type="email"
               name="email"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder="admin@example.com"
             />
@@ -54,8 +49,6 @@ export default function AdminLoginPage() {
               type="password"
               name="password"
               required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder="••••••••"
             />
@@ -72,7 +65,7 @@ export default function AdminLoginPage() {
 
           <Link href="/signup">
             <p className="text-center text-sm text-blue-800 font-semibold hover:text-blue-900 mt-2">
-              Don't have a Account ? Signup
+              Don't have an Account? Signup
             </p>
           </Link>
 
