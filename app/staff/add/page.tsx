@@ -198,9 +198,9 @@ export default function AddStaffPage() {
       newErrors.phone = "Phone must be exactly 10 digits and only numbers";
     }
 
-    // ESIC validation (exactly 17 digits, only numbers)
-    if (form.esic && !/^[0-9]{17}$/.test(form.esic)) {
-      newErrors.esic = "ESIC must be exactly 17 digits and only numbers";
+    // ESIC validation (exactly 10 digits, only numbers)
+    if (form.esic && !/^[0-9]{10}$/.test(form.esic)) {
+      newErrors.esic = "ESIC must be exactly 10 digits and only numbers";
     }
 
     // UAN validation (exactly 12 digits, only numbers)
