@@ -342,13 +342,7 @@ export default function FirmsCompaniesStaffPage() {
                           <React.Fragment key={comp.id}>
                             <tr
                               className="bg-gray-50 hover:bg-gray-100 cursor-pointer"
-                              onClick={() =>
-                                handleCompanyToggle(
-                                  firmIndex,
-                                  compIndex,
-                                  comp.id
-                                )
-                              }
+                              onClick={() => handleCompanyToggle(compIndex)}
                             >
                               <td></td>
                               <td className="p-3 pl-6 text-gray-700 font-medium">
