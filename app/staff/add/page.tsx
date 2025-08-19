@@ -706,7 +706,7 @@ export default function AddStaffPage() {
                   const numericValue = e.target.value.replace(/\D/g, "");
                   update("esic", numericValue);
                 }}
-                placeholder="ESIC Number (17 digits)"
+                placeholder="ESIC Number (10 digits)"
                 maxLength={17}
                 className={errors.esic ? "border-red-500" : ""}
               />
