@@ -250,12 +250,6 @@ export default function FirmsPage() {
 
         {/* Download Buttons */}
         <div className="flex gap-2">
-          <Link href="/firm/getFirms">
-            <Button className="bg-[#6587DE] text-white hover:bg-blue-700">
-              <Download className="h-4 w-4 mr-1" />
-              Firm Data
-            </Button>
-          </Link>
           <Link href="/firm/getstaff">
             <Button className="bg-[#6587DE] text-white hover:bg-blue-700">
               <Download className="h-4 w-4 mr-1" />
