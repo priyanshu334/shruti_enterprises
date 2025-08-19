@@ -62,10 +62,11 @@ export default function FirmsCompaniesStaffPage() {
   const [expandedCompany, setExpandedCompany] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchFirms();
+    fetchFirmsWithStaff();
   }, []);
 
-  const fetchFirms = async () => {
+  /** Fetch firms, companies and preload staff */
+  const fetchFirmsWithStaff = async () => {
     try {
       const { data, error } = await supabase
         .from("firms")
@@ -77,49 +78,40 @@ export default function FirmsCompaniesStaffPage() {
         return;
       }
 
-      setFirms(
-        (data || []).map((f: any) => ({
-          id: f.id,
-          name: f.name,
-          companies: f.companies || [],
-        }))
+      const firmsData: FirmData[] = await Promise.all(
+        (data || []).map(async (f: any) => {
+          const companiesWithStaff: Company[] = await Promise.all(
+            (f.companies || []).map(async (c: any) => {
+              try {
+                const res = await fetch(
+                  `/api/staff/byCompany?companyId=${c.id}`
+                );
+                const json = await res.json();
+                return {
+                  ...c,
+                  staff: json.success ? json.data : [],
+                };
+              } catch {
+                return { ...c, staff: [] };
+              }
+            })
+          );
+
+          return {
+            id: f.id,
+            name: f.name,
+            companies: companiesWithStaff,
+          };
+        })
       );
+
+      setFirms(firmsData);
     } catch (err: any) {
       toast.error(`Unexpected error: ${err?.message || err}`);
     }
   };
 
-  const fetchStaffForCompany = async (
-    companyId: number,
-    firmIndex: number,
-    companyIndex: number
-  ) => {
-    try {
-      const res = await fetch(`/api/staff/byCompany?companyId=${companyId}`);
-      const json = await res.json();
-
-      if (!json.success) {
-        toast.error(json.message || "Error fetching staff");
-        return;
-      }
-
-      setFirms((prev) =>
-        prev.map((firm, fIdx) =>
-          fIdx === firmIndex
-            ? {
-                ...firm,
-                companies: firm.companies.map((comp, cIdx) =>
-                  cIdx === companyIndex ? { ...comp, staff: json.data } : comp
-                ),
-              }
-            : firm
-        )
-      );
-    } catch (err: any) {
-      toast.error(`Error fetching staff: ${err?.message}`);
-    }
-  };
-
+  /** Filtering */
   const filteredFirms = firms.filter((firm) => {
     const search = searchTerm.toLowerCase();
     return (
@@ -131,25 +123,14 @@ export default function FirmsCompaniesStaffPage() {
     );
   });
 
+  /** Toggle handlers */
   const handleFirmToggle = (firmIndex: number) => {
     setExpandedFirm((prev) => (prev === firmIndex ? null : firmIndex));
     setExpandedCompany(null);
   };
 
-  const handleCompanyToggle = (
-    firmIndex: number,
-    companyIndex: number,
-    companyId: number
-  ) => {
-    if (expandedCompany === companyIndex) {
-      setExpandedCompany(null);
-    } else {
-      setExpandedCompany(companyIndex);
-      const company = firms[firmIndex].companies[companyIndex];
-      if (!company.staff) {
-        fetchStaffForCompany(companyId, firmIndex, companyIndex);
-      }
-    }
+  const handleCompanyToggle = (companyIndex: number) => {
+    setExpandedCompany((prev) => (prev === companyIndex ? null : companyIndex));
   };
 
   /** ===== Helper for CSV Rows ===== */
@@ -178,10 +159,9 @@ export default function FirmsCompaniesStaffPage() {
     "Bank Passbook": staff.bankPassbook || "",
   });
 
-  /** ===== CSV EXPORTS ===== */
+  /** CSV exports (same as before) */
   const downloadFirmCSV = (firm: FirmData) => {
     const rows: any[] = [];
-
     firm.companies.forEach((comp) => {
       if (comp.staff && comp.staff.length > 0) {
         comp.staff.forEach((staff) =>
@@ -201,7 +181,6 @@ export default function FirmsCompaniesStaffPage() {
     const csv = XLSX.utils.sheet_to_csv(worksheet);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.href = url;
     link.download = `${firm.name.replace(/\s+/g, "_")}_data.csv`;
@@ -213,14 +192,11 @@ export default function FirmsCompaniesStaffPage() {
       toast.error("No staff data to export");
       return;
     }
-
     const rows = company.staff.map((s) => mapStaffToRow(firm, company, s));
-
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const csv = XLSX.utils.sheet_to_csv(worksheet);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.href = url;
     link.download = `${company.name.replace(/\s+/g, "_")}_staff.csv`;
@@ -229,7 +205,6 @@ export default function FirmsCompaniesStaffPage() {
 
   const downloadAllCSV = () => {
     const rows: any[] = [];
-
     firms.forEach((firm) => {
       firm.companies.forEach((comp) => {
         if (comp.staff && comp.staff.length > 0) {
@@ -251,7 +226,6 @@ export default function FirmsCompaniesStaffPage() {
     const csv = XLSX.utils.sheet_to_csv(worksheet);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.href = url;
     link.download = `All_Firms_Companies_Staff.csv`;
