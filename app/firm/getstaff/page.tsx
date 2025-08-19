@@ -87,6 +87,7 @@ export default function FirmsCompaniesStaffPage() {
                   `/api/staff/byCompany?companyId=${c.id}`
                 );
                 const json = await res.json();
+                console.log("json data is", json);
                 return {
                   ...c,
                   staff: json.success ? json.data : [],
@@ -153,10 +154,10 @@ export default function FirmsCompaniesStaffPage() {
     "Account Number": staff.account_number || "",
     "IFSC Code": staff.ifsc_code || "",
     "Is Active": staff.is_active ? "Yes" : "No",
-    "Staff Image": staff.staffImage || "",
-    "Aadhar Card": staff.aadharCard || "",
-    "Aadhar Backside": staff.aadharBackside || "",
-    "Bank Passbook": staff.bankPassbook || "",
+    "Staff Image": staff.staff_image_url || "",
+    "Aadhar Card": staff.aadhar_card_url || "",
+    "Aadhar Backside": staff.aadhar_backside_url || "",
+    "Bank Passbook": staff.bank_passbook_url || "",
   });
 
   /** CSV exports (same as before) */
