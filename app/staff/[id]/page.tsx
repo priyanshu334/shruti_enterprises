@@ -142,12 +142,14 @@ export default function EmployeeProfilePage() {
     });
 
     let finalY = (doc as any).lastAutoTable.finalY + 10;
+
     const loadImageAndAdd = (
       url: string,
       x: number,
       y: number,
       w: number,
-      h: number
+      h: number,
+      label: string
     ) => {
       return new Promise<void>((resolve) => {
         const img = new Image();
@@ -155,6 +157,8 @@ export default function EmployeeProfilePage() {
         img.src = url;
         img.onload = () => {
           doc.addImage(img, "JPEG", x, y, w, h);
+          doc.setFontSize(10);
+          doc.text(label, x, y + h + 5);
           resolve();
         };
         img.onerror = () => resolve();
@@ -162,25 +166,37 @@ export default function EmployeeProfilePage() {
     };
 
     (async () => {
-      if (staff.staff_image_url) {
-        await loadImageAndAdd(staff.staff_image_url, 14, finalY, 40, 40);
-        doc.text("Profile Image", 14, finalY + 45);
-        finalY += 55;
+      const images = [
+        { url: staff.staff_image_url, label: "Profile Image" },
+        { url: staff.aadhar_card_url, label: "Aadhar Card" },
+        { url: staff.aadhar_backside_url, label: "Aadhar Backside" },
+        { url: staff.bank_passbook_url, label: "Bank Passbook" },
+      ].filter((img) => img.url);
+
+      const imgW = 60;
+      const imgH = 40;
+      const gapX = 10;
+      const gapY = 20;
+      let x = 14;
+      let y = finalY;
+
+      for (let i = 0; i < images.length; i++) {
+        const col = i % 2; // 0 = left, 1 = right
+        const row = Math.floor(i / 2);
+
+        x = 14 + col * (imgW + gapX);
+        y = finalY + row * (imgH + gapY);
+
+        await loadImageAndAdd(
+          images[i].url!,
+          x,
+          y,
+          imgW,
+          imgH,
+          images[i].label
+        );
       }
-      if (staff.aadhar_card_url) {
-        await loadImageAndAdd(staff.aadhar_card_url, 14, finalY, 60, 40);
-        doc.text("Aadhar Card", 14, finalY + 45);
-        finalY += 55;
-      }
-      if (staff.aadhar_backside_url) {
-        await loadImageAndAdd(staff.aadhar_backside_url, 14, finalY, 60, 40);
-        doc.text("Aadhar Backside", 14, finalY + 45);
-        finalY += 55;
-      }
-      if (staff.bank_passbook_url) {
-        await loadImageAndAdd(staff.bank_passbook_url, 14, finalY, 60, 40);
-        doc.text("Bank Passbook", 14, finalY + 45);
-      }
+
       doc.save(`${staff.name.replace(/\s+/g, "_")}_Profile.pdf`);
     })();
   };
