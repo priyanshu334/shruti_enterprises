@@ -35,10 +35,10 @@ interface Staff {
   account_number?: string;
   ifsc_code?: string;
   is_active?: boolean;
-  staffImage?: string;
-  aadharCard?: string;
-  aadharBackside?: string;
-  bankPassbook?: string;
+  staff_image_url?: string;
+  aadhar_card_url?: string;
+  aadhar_backside_url?: string;
+  bank_passbook_url?: string;
 }
 
 interface Company {
@@ -87,7 +87,6 @@ export default function FirmsCompaniesStaffPage() {
                   `/api/staff/byCompany?companyId=${c.id}`
                 );
                 const json = await res.json();
-                console.log("json data is", json);
                 return {
                   ...c,
                   staff: json.success ? json.data : [],
@@ -134,7 +133,7 @@ export default function FirmsCompaniesStaffPage() {
     setExpandedCompany((prev) => (prev === companyIndex ? null : companyIndex));
   };
 
-  /** ===== Helper for CSV Rows ===== */
+  /** ===== Helper for Excel Rows ===== */
   const mapStaffToRow = (firm: FirmData, comp: Company, staff: any) => ({
     Firm: firm.name,
     Company: comp.name,
@@ -160,8 +159,8 @@ export default function FirmsCompaniesStaffPage() {
     "Bank Passbook": staff.bank_passbook_url || "",
   });
 
-  /** CSV exports (same as before) */
-  const downloadFirmCSV = (firm: FirmData) => {
+  /** Excel exports */
+  const downloadFirmExcel = (firm: FirmData) => {
     const rows: any[] = [];
     firm.companies.forEach((comp) => {
       if (comp.staff && comp.staff.length > 0) {
@@ -179,32 +178,24 @@ export default function FirmsCompaniesStaffPage() {
     });
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
-    const csv = XLSX.utils.sheet_to_csv(worksheet);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${firm.name.replace(/\s+/g, "_")}_data.csv`;
-    link.click();
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, firm.name);
+    XLSX.writeFile(workbook, `${firm.name.replace(/\s+/g, "_")}_data.xlsx`);
   };
 
-  const downloadCompanyCSV = (company: Company, firm: FirmData) => {
+  const downloadCompanyExcel = (company: Company, firm: FirmData) => {
     if (!company.staff || company.staff.length === 0) {
       toast.error("No staff data to export");
       return;
     }
     const rows = company.staff.map((s) => mapStaffToRow(firm, company, s));
     const worksheet = XLSX.utils.json_to_sheet(rows);
-    const csv = XLSX.utils.sheet_to_csv(worksheet);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${company.name.replace(/\s+/g, "_")}_staff.csv`;
-    link.click();
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, company.name);
+    XLSX.writeFile(workbook, `${company.name.replace(/\s+/g, "_")}_staff.xlsx`);
   };
 
-  const downloadAllCSV = () => {
+  const downloadAllExcel = () => {
     const rows: any[] = [];
     firms.forEach((firm) => {
       firm.companies.forEach((comp) => {
@@ -224,13 +215,9 @@ export default function FirmsCompaniesStaffPage() {
     });
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
-    const csv = XLSX.utils.sheet_to_csv(worksheet);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `All_Firms_Companies_Staff.csv`;
-    link.click();
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "All Data");
+    XLSX.writeFile(workbook, `All_Firms_Companies_Staff.xlsx`);
   };
 
   return (
@@ -253,9 +240,9 @@ export default function FirmsCompaniesStaffPage() {
 
         <Button
           className="bg-green-600 text-white hover:bg-green-700"
-          onClick={downloadAllCSV}
+          onClick={downloadAllExcel}
         >
-          <Download className="h-4 w-4 mr-1" /> Download All CSV
+          <Download className="h-4 w-4 mr-1" /> Download All Excel
         </Button>
       </div>
 
@@ -329,10 +316,10 @@ export default function FirmsCompaniesStaffPage() {
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              downloadFirmCSV(firm);
+                              downloadFirmExcel(firm);
                             }}
                           >
-                            <Download className="h-4 w-4 mr-1" /> CSV
+                            <Download className="h-4 w-4 mr-1" /> Excel
                           </Button>
                         </td>
                       </tr>
@@ -363,11 +350,11 @@ export default function FirmsCompaniesStaffPage() {
                                   size="sm"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    downloadCompanyCSV(comp, firm);
+                                    downloadCompanyExcel(comp, firm);
                                   }}
                                 >
                                   <Download className="h-4 w-4 mr-1" /> Staff
-                                  CSV
+                                  Excel
                                 </Button>
                               </td>
                             </tr>
