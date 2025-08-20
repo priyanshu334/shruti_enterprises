@@ -111,6 +111,8 @@ export default function EmployeeProfilePage() {
   const handleDownloadPDF = () => {
     if (!staff) return;
     const doc = new jsPDF();
+
+    // Page 1 : Employee Details
     doc.setFontSize(18);
     doc.text("Employee Profile", 14, 20);
     doc.setFontSize(12);
@@ -141,8 +143,7 @@ export default function EmployeeProfilePage() {
       theme: "grid",
     });
 
-    let finalY = (doc as any).lastAutoTable.finalY + 10;
-
+    // Function to load & add image
     const loadImageAndAdd = (
       url: string,
       x: number,
@@ -173,30 +174,38 @@ export default function EmployeeProfilePage() {
         { url: staff.bank_passbook_url, label: "Bank Passbook" },
       ].filter((img) => img.url);
 
-      const imgW = 60;
-      const imgH = 40;
-      const gapX = 10;
-      const gapY = 20;
-      let x = 14;
-      let y = finalY;
+      if (images.length > 0) {
+        // Start new page for images
+        doc.addPage();
+        doc.setFontSize(16);
+        doc.text("Employee Documents", 14, 20);
 
-      for (let i = 0; i < images.length; i++) {
-        const col = i % 2; // 0 = left, 1 = right
-        const row = Math.floor(i / 2);
+        const imgW = 80;
+        const imgH = 70;
+        const gapX = 10;
+        const gapY = 30;
+        let x = 14;
+        let y = 30;
 
-        x = 14 + col * (imgW + gapX);
-        y = finalY + row * (imgH + gapY);
+        for (let i = 0; i < images.length; i++) {
+          const col = i % 2; // 0 = left, 1 = right
+          const row = Math.floor(i / 2);
 
-        await loadImageAndAdd(
-          images[i].url!,
-          x,
-          y,
-          imgW,
-          imgH,
-          images[i].label
-        );
+          x = 14 + col * (imgW + gapX);
+          y = 30 + row * (imgH + gapY);
+
+          await loadImageAndAdd(
+            images[i].url!,
+            x,
+            y,
+            imgW,
+            imgH,
+            images[i].label
+          );
+        }
       }
 
+      // Save PDF
       doc.save(`${staff.name.replace(/\s+/g, "_")}_Profile.pdf`);
     })();
   };
