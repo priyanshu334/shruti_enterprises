@@ -63,12 +63,6 @@ export default function AdminLoginPage() {
             Login
           </button>
 
-          <Link href="/signup">
-            <p className="text-center text-sm text-blue-800 font-semibold hover:text-blue-900 mt-2">
-              Don't have an Account? Signup
-            </p>
-          </Link>
-
           <Link href="/forgotpass">
             <p className="text-center text-sm text-red-400 hover:text-red-600 mt-2">
               Forgot password?
