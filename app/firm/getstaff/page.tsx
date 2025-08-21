@@ -153,10 +153,6 @@ export default function FirmsCompaniesStaffPage() {
     "Account Number": staff.account_number || "",
     "IFSC Code": staff.ifsc_code || "",
     "Is Active": staff.is_active ? "Yes" : "No",
-    "Staff Image": staff.staff_image_url || "",
-    "Aadhar Card": staff.aadhar_card_url || "",
-    "Aadhar Backside": staff.aadhar_backside_url || "",
-    "Bank Passbook": staff.bank_passbook_url || "",
   });
 
   /** Excel exports */
